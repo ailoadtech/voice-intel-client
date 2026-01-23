@@ -32,6 +32,7 @@ export default function HomePage() {
   const [enrichingId, setEnrichingId] = useState<string | null>(null);
   const [isModelAvailable, setIsModelAvailable] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [downloadProgress, setDownloadProgress] = useState(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -141,20 +142,68 @@ export default function HomePage() {
     };
 
     const checkAndDownloadModel = async () => {
+      let progressInterval: NodeJS.Timeout | null = null;
+      let aborted = false;
+      
       try {
         setIsModelLoading(true);
         setIsInitializing(true);
+        setDownloadProgress(0);
         console.log("Checking Whisper model...");
+        
+        // Add escape key listener to abort download
+        const handleEscape = (e: KeyboardEvent) => {
+          if (e.key === 'Escape') {
+            console.log("Download aborted by user");
+            aborted = true;
+            if (progressInterval) clearInterval(progressInterval);
+            setIsModelLoading(false);
+            setIsInitializing(false);
+            setDownloadProgress(0);
+            setIsModelAvailable(false);
+            document.removeEventListener('keydown', handleEscape);
+          }
+        };
+        document.addEventListener('keydown', handleEscape);
+        
+        // Simulate progress during download
+        progressInterval = setInterval(() => {
+          if (aborted) {
+            if (progressInterval) clearInterval(progressInterval);
+            return;
+          }
+          setDownloadProgress(prev => {
+            if (prev >= 95) return prev; // Stop at 95% until download completes
+            return prev + Math.random() * 5; // Increment by random amount
+          });
+        }, 500);
+        
         await invoke("check_model");
+        
+        // Remove escape listener after download completes
+        document.removeEventListener('keydown', handleEscape);
+        
+        if (aborted) return;
+        
+        if (progressInterval) clearInterval(progressInterval);
+        setDownloadProgress(100);
+        
+        // Wait a moment to show 100%
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
         setIsModelAvailable(true);
         console.log("Whisper model is ready");
       } catch (err) {
         console.error("Failed to load Whisper model:", err);
         setIsModelAvailable(false);
-        setErrorMessage("Fehler beim Laden des Whisper-Modells. Transkription ist nicht verfügbar.");
+        if (!aborted) {
+          setErrorMessage("Fehler beim Laden des Whisper-Modells. Transkription ist nicht verfügbar.");
+        }
       } finally {
+        if (progressInterval) clearInterval(progressInterval);
         setIsModelLoading(false);
         setIsInitializing(false);
+        setDownloadProgress(0);
       }
     };
 
@@ -432,6 +481,12 @@ export default function HomePage() {
             </div>
             <div className="loading-text">Whisper-Modell wird geladen...</div>
             <div className="loading-subtext">Dies kann beim ersten Start einige Minuten dauern (~500 MB)</div>
+            
+            {/* Progress bar */}
+            <div className="download-progress-container">
+              <div className="download-progress-bar" style={{ width: `${downloadProgress}%` }}></div>
+            </div>
+            <div className="download-progress-text">{downloadProgress}%</div>
           </div>
         </div>
       )}
@@ -714,6 +769,44 @@ export default function HomePage() {
           padding-bottom: 20px;
         }
 
+        /* Prompt Selector */
+        .prompt-selector {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 15px;
+          padding: 12px 20px;
+          background: #1a1d23;
+          border-radius: 12px;
+          border: 1px solid #333;
+          width: fit-content;
+        }
+        .prompt-label {
+          font-size: 14px;
+          color: #aaa;
+          font-weight: 500;
+        }
+        .prompt-dropdown {
+          background: #0f1115;
+          border: 1px solid #444;
+          color: #e0e0e0;
+          padding: 8px 16px;
+          border-radius: 8px;
+          font-size: 14px;
+          cursor: pointer;
+          transition: all 0.2s;
+          outline: none;
+          min-width: 150px;
+        }
+        .prompt-dropdown:hover {
+          border-color: #4dabf7;
+          background: #1a1d23;
+        }
+        .prompt-dropdown:focus {
+          border-color: #4dabf7;
+          box-shadow: 0 0 0 2px rgba(77, 171, 247, 0.1);
+        }
+
         /* Prompt Selector - Inline version inside rec-card */
         .rec-divider {
           width: 1px;
@@ -928,7 +1021,30 @@ export default function HomePage() {
           100% { transform: rotate(360deg); }
         }
         .loading-text { font-size: 22px; font-weight: 700; color: #4dabf7; margin-bottom: 12px; }
-        .loading-subtext { font-size: 14px; color: #555; }
+        .loading-subtext { font-size: 14px; color: #555; margin-bottom: 25px; }
+        
+        .download-progress-container {
+          width: 100%;
+          max-width: 400px;
+          height: 6px;
+          background: #1a1d23;
+          border-radius: 3px;
+          overflow: hidden;
+          margin: 0 auto 12px;
+          border: 1px solid #333;
+        }
+        .download-progress-bar {
+          height: 100%;
+          background: linear-gradient(90deg, #40c057 0%, #51cf66 100%);
+          transition: width 0.3s ease;
+          box-shadow: 0 0 10px rgba(64, 192, 87, 0.5);
+        }
+        .download-progress-text {
+          font-size: 16px;
+          color: #40c057;
+          font-weight: 600;
+          text-align: center;
+        }
 
         @keyframes spin {
           to { transform: rotate(360deg); }
