@@ -9,37 +9,28 @@ pub struct LlmConfig {
     pub url: String,
     pub model: String,
     pub timeout_seconds: u64,
-    pub prompt_template: String,
-    #[serde(default)]
-    pub prompt_template1: Option<String>,
-    #[serde(default)]
-    pub prompt_template2: Option<String>,
-    #[serde(default)]
-    pub prompt_template3: Option<String>,
+    pub prompt_template1: String,
+    pub prompt_template2: String,
+    pub prompt_template3: String,
+    pub prompt_template4: String,
 }
 
 impl LlmConfig {
     pub fn get_prompt_templates(&self) -> HashMap<String, String> {
         let mut templates = HashMap::new();
-        templates.insert("Prompt 1".to_string(), self.prompt_template.clone());
-        if let Some(t) = &self.prompt_template1 {
-            templates.insert("Prompt 2".to_string(), t.clone());
-        }
-        if let Some(t) = &self.prompt_template2 {
-            templates.insert("Prompt 3".to_string(), t.clone());
-        }
-        if let Some(t) = &self.prompt_template3 {
-            templates.insert("Prompt 4".to_string(), t.clone());
-        }
+        templates.insert("Prompt 1".to_string(), self.prompt_template1.clone());
+        templates.insert("Prompt 2".to_string(), self.prompt_template2.clone());
+        templates.insert("Prompt 3".to_string(), self.prompt_template3.clone());
+        templates.insert("Prompt 4".to_string(), self.prompt_template4.clone());
         templates
     }
 
     pub fn get_template_by_name(&self, name: &str) -> Option<String> {
         match name {
-            "Prompt 1" => Some(self.prompt_template.clone()),
-            "Prompt 2" => self.prompt_template1.clone(),
-            "Prompt 3" => self.prompt_template2.clone(),
-            "Prompt 4" => self.prompt_template3.clone(),
+            "Prompt 1" => Some(self.prompt_template1.clone()),
+            "Prompt 2" => Some(self.prompt_template2.clone()),
+            "Prompt 3" => Some(self.prompt_template3.clone()),
+            "Prompt 4" => Some(self.prompt_template4.clone()),
             _ => None,
         }
     }
@@ -56,10 +47,13 @@ impl Default for AppConfig {
         Self {
             llm: LlmConfig {
                 enabled: true,
-                url: "http://192.168.1.100:11434".to_string(),
+                url: "http://127.0.0.1:11434".to_string(),
                 model: "llama3.2:latest".to_string(),
                 timeout_seconds: 60,
-                prompt_template: "Verbessere und strukturiere folgenden Text:\n\n{{text}}".to_string(),
+                prompt_template1: "Verbessere folgenden Text sprachlich, füge Struktur hinzu und gib ihn als professionellen, formatierten Text zurück:\n\n{{text}}".to_string(),
+                prompt_template2: "Fasse den Text zusammen als Bullet-Liste:\n\n{{text}}".to_string(),
+                prompt_template3: "Schreibe den Text im Stil von Shakespeare:\n\n{{text}}".to_string(),
+                prompt_template4: "Bullshit Bingo. Wenn ein Begriff aus der Kategorie Berufsleben/Management im transkriberten Text auftaucht, dann mache ihn in der enriched Version Fett:\n\n{{text}}".to_string(),
             },
         }
     }

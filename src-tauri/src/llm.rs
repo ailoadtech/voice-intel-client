@@ -38,9 +38,9 @@ async fn inner_enrich_and_save(
     
     // Get the appropriate template based on prompt_name
     let template = if let Some(name) = prompt_name {
-        config.get_template_by_name(name).unwrap_or_else(|| config.prompt_template.clone())
+        config.get_template_by_name(name).unwrap_or_else(|| config.prompt_template1.clone())
     } else {
-        config.prompt_template.clone()
+        config.prompt_template1.clone()
     };
     
     let prompt = template.replace("{{text}}", transcript);
