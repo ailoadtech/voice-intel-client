@@ -778,10 +778,10 @@ export default function HomePage() {
         .rec-card { 
           background: #1a1d23; 
           border: 1px solid #333; 
-          padding: 12px 18px; 
+          padding: 8px 18px; 
           border-radius: 12px; 
           width: 550px; 
-          min-height: 48px;
+          min-height: 36px;
           box-shadow: 0 4px 15px rgba(0,0,0,0.4);
           position: relative;
           overflow: hidden;
@@ -802,9 +802,9 @@ export default function HomePage() {
           transition: width 0.1s linear;
         }
         
-        .rec-time { font-size: 13px; color: #aaa; font-weight: 500; }
-        .rec-footer { display: flex; align-items: center; gap: 12px; }
-        .rec-play-btn, .rec-delete-btn { background: none; border: none; color: #aaa; cursor: pointer; font-size: 18px; transition: all 0.2s; width: 26px; display: flex; align-items: center; justify-content: center; }
+        .rec-time { font-size: 13px; color: #aaa; font-weight: 500; flex-shrink: 0; }
+        .rec-footer { display: flex; align-items: center; gap: 8px; }
+        .rec-play-btn, .rec-delete-btn { background: none; border: none; color: #aaa; cursor: pointer; font-size: 18px; transition: all 0.2s; width: 26px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .rec-play-btn:hover { color: #4dabf7; transform: scale(1.1); }
         .rec-play-btn.playing { color: #fa5252; }
         .rec-delete-btn:hover { color: #fa5252; transform: scale(1.1); }
