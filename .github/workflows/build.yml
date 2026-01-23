@@ -40,11 +40,9 @@ jobs:
       - name: Configure Cargo for Windows cross-compilation
         run: |
           mkdir -p ~/.cargo
-          cat >> ~/.cargo/config.toml <<EOF
-[target.x86_64-pc-windows-msvc]
-linker = "xwin cl"
-ar = "xwin ar"
-EOF
+          echo '[target.x86_64-pc-windows-msvc]' > ~/.cargo/config.toml
+          echo 'linker = "xwin cl"' >> ~/.cargo/config.toml
+          echo 'ar = "xwin ar"' >> ~/.cargo/config.toml
 
       - name: Build Windows EXE
         run: cargo build --release --target x86_64-pc-windows-msvc
