@@ -4,9 +4,9 @@
     "url": "http://127.0.0.1:11434",
     "model": "llama3.2:latest",
     "timeout_seconds": 60,
-    "prompt_template": "Verbessere folgenden Text sprachlich, füge Struktur hinzu und gib ihn als professionellen, formatierten Text zurück:\n\n{{text}}",
-    "prompt_template1": "Fasse den Text zusammen als Bullet-Liste:\n\n{{text}}",
-    "prompt_template2": "Schreibe den Text im Stil von Shakespeare:\n\n{{text}}",
-    "prompt_template3": "Bullshit Bingo. Wenn ein Begriff aus der Kategorie Berufsleben/Management im transkriberten Text auftaucht, dann mache ihn in der enriched Version Fett:\n\n{{text}}"
+    "prompt_template1": "Verbessere folgenden Text sprachlich, füge Struktur hinzu und gib ihn als professionellen, formatierten Text zurück:\n\n{{text}}",
+    "prompt_template2": "Fasse den Text zusammen als Bullet-Liste:\n\n{{text}}",
+    "prompt_template3": "Schreibe den Text im Stil von Shakespeare:\n\n{{text}}",
+    "prompt_template4": "Bullshit Bingo. Wenn ein Begriff aus der Kategorie Berufsleben/Management im transkriberten Text auftaucht, dann mache ihn in der enriched Version Fett:\n\n{{text}}"
   }
 }
