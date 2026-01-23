@@ -1,0 +1,14 @@
+{
+    "default": null,
+    "permission": [
+        {
+            "identifier": "allow-main-commands",
+            "description": "Allows custom commands in main.rs",
+            "commands": {
+                "allow": [
+                    "save_and_queue_recording"
+                ]
+            }
+        }
+    ]
+}

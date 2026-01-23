@@ -1,0 +1,19 @@
+{
+  "name": "voice-intel-app",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "next dev -H 0.0.0.0 -p 3000",
+    "build": "next build && next export",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "next": "14.2.0",
+    "react": "18",
+    "react-dom": "18",
+    "@tauri-apps/api": "^2.0.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0"
+  }
+}

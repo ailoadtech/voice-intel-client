@@ -1,0 +1,16 @@
+{
+    "$schema": "../gen/schemas/desktop-capability.json",
+    "identifier": "default",
+    "description": "default capability",
+    "windows": [
+        "main"
+    ],
+    "permissions": [
+        "core:default",
+        "shell:default",
+        "global-shortcut:default",
+        "core:event:allow-listen",
+        "core:event:allow-emit",
+        "allow-main-commands"
+    ]
+}
