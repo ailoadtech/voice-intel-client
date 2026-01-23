@@ -190,6 +190,7 @@ voice-intel-client/
 
 - `build.sh`: Linux/Mac Build-Skript
 - `src-tauri/build_windows.sh`: Windows Build-Skript
+- github Actions: "Build Windows EXE"
 
 ## Credits
 
