@@ -9,15 +9,10 @@ on:
 
 jobs:
   build-windows:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Install system dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y cmake clang lld llvm libssl-dev pkg-config
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -32,64 +27,32 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-          targets: x86_64-pc-windows-msvc
-
-      - name: Install xwin
-        run: cargo install xwin
-
-      - name: Setup Windows SDK with xwin
-        run: |
-          xwin --accept-license splat --output ~/.xwin
-          
-      - name: Configure Cargo for Windows cross-compilation
-        run: |
-          mkdir -p ~/.cargo
-          cat > ~/.cargo/config.toml << 'EOF'
-          [target.x86_64-pc-windows-msvc]
-          linker = "lld"
-          rustflags = [
-            "-Lnative=/home/runner/.xwin/crt/lib/x86_64",
-            "-Lnative=/home/runner/.xwin/sdk/lib/um/x86_64",
-            "-Lnative=/home/runner/.xwin/sdk/lib/ucrt/x86_64"
-          ]
-          
-          [env]
-          CC_x86_64-pc-windows-msvc = "clang-cl"
-          CXX_x86_64-pc-windows-msvc = "clang-cl"
-          AR_x86_64-pc-windows-msvc = "llvm-lib"
-          EOF
-          
-      - name: Set environment variables for cross-compilation
-        run: |
-          echo "XWIN_ARCH=x86_64" >> $GITHUB_ENV
-          echo "XWIN_CACHE_DIR=$HOME/.xwin" >> $GITHUB_ENV
 
       - name: Build Windows EXE
-        run: cargo build --release --target x86_64-pc-windows-msvc
+        run: cargo build --release
         working-directory: src-tauri
 
       - name: Create portable folder
         run: |
-          mkdir -p release
-          cp src-tauri/target/x86_64-pc-windows-msvc/release/voice-intel-app.exe release/
-          cat > release/config.json << 'EOF'
-          {
-            "llm": {
-              "enabled": true,
-              "url": "http://localhost:11434",
-              "model": "llama3.2:latest",
-              "timeout_seconds": 60,
-              "prompt_template1": "Verbessere folgenden Text sprachlich, füge Struktur hinzu und gib ihn als professionellen, formatierten Text zurück:\n\n{{text}}",
-              "prompt_template2": "Fasse den Text zusammen als Bullet-Liste:\n\n{{text}}",
-              "prompt_template3": "Schreibe den Text im Stil von Shakespeare:\n\n{{text}}",
-              "prompt_template4": "Bullshit Bingo. Wenn ein Begriff aus der Kategorie Berufsleben/Management im transkribierten Text auftaucht, dann mache ihn in der enriched Version Fett:\n\n{{text}}"
-            }
-          }
-          EOF
+          mkdir release
+          copy src-tauri\target\release\voice-intel-app.exe release\
+          echo { > release\config.json
+          echo   "llm": { >> release\config.json
+          echo     "enabled": true, >> release\config.json
+          echo     "url": "http://localhost:11434", >> release\config.json
+          echo     "model": "llama3.2:latest", >> release\config.json
+          echo     "timeout_seconds": 60, >> release\config.json
+          echo     "prompt_template1": "Verbessere folgenden Text sprachlich, füge Struktur hinzu und gib ihn als professionellen, formatierten Text zurück:\n\n{{text}}", >> release\config.json
+          echo     "prompt_template2": "Fasse den Text zusammen als Bullet-Liste:\n\n{{text}}", >> release\config.json
+          echo     "prompt_template3": "Schreibe den Text im Stil von Shakespeare:\n\n{{text}}", >> release\config.json
+          echo     "prompt_template4": "Bullshit Bingo. Wenn ein Begriff aus der Kategorie Berufsleben/Management im transkribierten Text auftaucht, dann mache ihn in der enriched Version Fett:\n\n{{text}}" >> release\config.json
+          echo   } >> release\config.json
+          echo } >> release\config.json
+        shell: cmd
 
       - name: Upload as artifact
         uses: actions/upload-artifact@v4
         with:
           name: voice-intel-windows-portable
-          path: release/
+          path: release\
           retention-days: 7
