@@ -17,7 +17,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt update
-          sudo apt install -y cmake clang libssl-dev pkg-config
+          sudo apt install -y cmake clang lld llvm libssl-dev pkg-config
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -37,12 +37,32 @@ jobs:
       - name: Install xwin
         run: cargo install xwin
 
+      - name: Setup Windows SDK with xwin
+        run: |
+          xwin --accept-license splat --output ~/.xwin
+          
       - name: Configure Cargo for Windows cross-compilation
         run: |
           mkdir -p ~/.cargo
-          echo '[target.x86_64-pc-windows-msvc]' > ~/.cargo/config.toml
-          echo 'linker = "xwin cl"' >> ~/.cargo/config.toml
-          echo 'ar = "xwin ar"' >> ~/.cargo/config.toml
+          cat > ~/.cargo/config.toml << 'EOF'
+          [target.x86_64-pc-windows-msvc]
+          linker = "lld"
+          rustflags = [
+            "-Lnative=/home/runner/.xwin/crt/lib/x86_64",
+            "-Lnative=/home/runner/.xwin/sdk/lib/um/x86_64",
+            "-Lnative=/home/runner/.xwin/sdk/lib/ucrt/x86_64"
+          ]
+          
+          [env]
+          CC_x86_64-pc-windows-msvc = "clang-cl"
+          CXX_x86_64-pc-windows-msvc = "clang-cl"
+          AR_x86_64-pc-windows-msvc = "llvm-lib"
+          EOF
+          
+      - name: Set environment variables for cross-compilation
+        run: |
+          echo "XWIN_ARCH=x86_64" >> $GITHUB_ENV
+          echo "XWIN_CACHE_DIR=$HOME/.xwin" >> $GITHUB_ENV
 
       - name: Build Windows EXE
         run: cargo build --release --target x86_64-pc-windows-msvc
