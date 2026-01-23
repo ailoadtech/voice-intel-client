@@ -30,6 +30,8 @@ export default function HomePage() {
   const [promptTemplates, setPromptTemplates] = useState<string[]>([]);
   const [selectedPrompt, setSelectedPrompt] = useState<string>("Prompt 1");
   const [enrichingId, setEnrichingId] = useState<string | null>(null);
+  const [isModelAvailable, setIsModelAvailable] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -138,8 +140,29 @@ export default function HomePage() {
       }
     };
 
-    loadExistingRecordings();
-    loadPromptTemplates();
+    const checkAndDownloadModel = async () => {
+      try {
+        setIsModelLoading(true);
+        setIsInitializing(true);
+        console.log("Checking Whisper model...");
+        await invoke("check_model");
+        setIsModelAvailable(true);
+        console.log("Whisper model is ready");
+      } catch (err) {
+        console.error("Failed to load Whisper model:", err);
+        setIsModelAvailable(false);
+        setErrorMessage("Fehler beim Laden des Whisper-Modells. Transkription ist nicht verfügbar.");
+      } finally {
+        setIsModelLoading(false);
+        setIsInitializing(false);
+      }
+    };
+
+    // Check model first, then load other data
+    checkAndDownloadModel().then(() => {
+      loadExistingRecordings();
+      loadPromptTemplates();
+    });
   }, []);
 
   const startRecording = useCallback(async () => {
@@ -238,11 +261,11 @@ export default function HomePage() {
       console.error("Mikrofon-Fehler:", err);
       setStatus("Mikrofon nicht verfügbar");
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        setErrorMessage("Der Zugriff auf das Mikrofon wurde blockiert. Bitte erlauben Sie den Zugriff in den Browser-Einstellungen.");
+        setErrorMessage("Der Zugriff auf das Mikrofon wurde blockiert.\n\nBitte erlauben Sie den Zugriff:\n1. Klicken Sie auf das Schloss-Symbol in der Adressleiste\n2. Erlauben Sie den Mikrofon-Zugriff\n3. Laden Sie die Seite neu");
       } else if (err.name === 'NotFoundError') {
-        setErrorMessage("Kein Mikrofon gefunden. Bitte schließen Sie ein Mikrofon an.");
+        setErrorMessage("Kein Mikrofon gefunden.\n\nBitte:\n1. Schließen Sie ein Mikrofon an\n2. Überprüfen Sie die Systemeinstellungen\n3. Starten Sie die Anwendung neu");
       } else {
-        setErrorMessage("Fehler beim Zugriff auf das Mikrofon: " + (err.message || "Unbekannter Fehler"));
+        setErrorMessage("Fehler beim Zugriff auf das Mikrofon:\n\n" + (err.message || "Unbekannter Fehler") + "\n\nBitte überprüfen Sie die Mikrofoneinstellungen in Ihrem System.");
       }
     }
   }, []);
@@ -386,10 +409,40 @@ export default function HomePage() {
 
   return (
     <div className="app-container">
-      {/* Upper Display Area */}
-      <div className={`display-panel ${activeResult ? 'visible' : 'hidden'}`}>
-        <div className="panel-content">
-          <button onClick={() => setActiveResult(null)} className="panel-close">✕</button>
+      {/* Show loading overlay during initialization */}
+      {isInitializing && (
+        <div className="loading-overlay">
+          <div className="loading-card">
+            <div className="hourglass-container">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#ffffff"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="hourglass-icon"
+              >
+                <path d="M5 22h14" />
+                <path d="M5 2h14" />
+                <path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22" />
+                <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" />
+              </svg>
+            </div>
+            <div className="loading-text">Whisper-Modell wird geladen...</div>
+            <div className="loading-subtext">Dies kann beim ersten Start einige Minuten dauern (~500 MB)</div>
+          </div>
+        </div>
+      )}
+
+      {/* Main UI - only show after initialization */}
+      {!isInitializing && (
+        <>
+          {/* Upper Display Area */}
+          <div className={`display-panel ${activeResult ? 'visible' : 'hidden'}`}>
+            <div className="panel-content">
+              <button onClick={() => setActiveResult(null)} className="panel-close">✕</button>
           <h2 className="panel-title">{activeResult?.title || "Transkription"}</h2>
           <div className="panel-body">{activeResult?.text}</div>
         </div>
@@ -400,9 +453,47 @@ export default function HomePage() {
       {/* Main Content Area */}
       <div className="main-content">
 
-        {/* History Stack (All recordings except the one being shown next to record button) */}
+        {/* Prompt Template Selector */}
+        {isTauri() && promptTemplates.length > 0 && (
+          <div className="prompt-selector">
+            <label htmlFor="prompt-select" className="prompt-label">KI-Stil:</label>
+            <select 
+              id="prompt-select"
+              value={selectedPrompt} 
+              onChange={(e) => setSelectedPrompt(e.target.value)}
+              className="prompt-dropdown"
+            >
+              {promptTemplates.map((template) => (
+                <option key={template} value={template}>{template}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* History Stack - ALL recordings including current/newest */}
         <div className="history-stack custom-scrollbar">
-          {recordings.slice(0, -1).map((rec) => (
+          {/* Show current recording if recording */}
+          {isRecording && (
+            <div className="rec-item">
+              <div className="rec-card recording-active">
+                <div className="rec-footer">
+                  <div className="rec-time">
+                    {new Date().toLocaleDateString('de-DE').replace(/\//g, '.') + ' - ' + new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + ' h'}
+                  </div>
+                  <div className="rec-play-btn recording-dot-container">
+                    <span className="recording-dot-pulse"></span>
+                  </div>
+                  <span className="rec-duration recording-timer">
+                    {formatDuration(recordingTime)}
+                  </span>
+                  <span className="rec-text-preview">Aufnahme läuft...</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Show all saved recordings */}
+          {recordings.map((rec) => (
             <div key={rec.id} className="rec-item">
               <div className="rec-card">
                 <div className="rec-footer">
@@ -439,7 +530,7 @@ export default function HomePage() {
                     </button>
                   )}
 
-                  {rec.transcription && !rec.enrichment && (
+                  {rec.transcription && !rec.enrichment && isModelAvailable && (
                     <button
                       onClick={() => reEnrichWithPrompt(rec.id)}
                       className="rec-action-btn-inline"
@@ -465,7 +556,7 @@ export default function HomePage() {
                           }
                         }}
                         className="rec-action-btn-inline"
-                        title="KI-Analyse anzeigen"
+                        title="Transkription AI"
                       >
                         <img src="/transkription-ai.png" alt="AI" />
                       </button>
@@ -510,182 +601,24 @@ export default function HomePage() {
 
         </div>
 
-        {/* Bottom Control Bar: Record Button + Latest Recording */}
+        {/* Bottom Control Bar: Record Button Only */}
         <div className="controls-bar">
           <div className="record-section">
             <button
               onClick={isRecording ? stopRecording : startRecording}
               className={`record-toggle ${isRecording ? 'recording' : 'idle'}`}
               disabled={isModelLoading}
-              title={isRecording ? "Aufnahme stoppen" : "Aufnahme starten"}
+              title={isRecording ? "Aufnahme stoppen Ctrl+Shift+Space" : "Aufnahme starten Ctrl+Shift+Space"}
             >
               <div className="record-indicator"></div>
             </button>
           </div>
-
-          {(recordings.length > 0 || isRecording) && (
-            <div className="rec-item first-rec-item">
-              <div className="rec-card">
-                <div className="rec-footer">
-                  <div className="rec-time">
-                    {isRecording ? new Date().toLocaleDateString('de-DE').replace(/\//g, '.') + ' - ' + new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + ' h' : `${recordings[recordings.length - 1]?.date} - ${recordings[recordings.length - 1]?.time}`}
-                  </div>
-                  {isRecording ? (
-                    <div className="rec-play-btn recording-dot-container">
-                      <span className="recording-dot-pulse"></span>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => recordings.length > 0 && playRecording(recordings[recordings.length - 1].id)}
-                      className={`rec-play-btn ${playingId === recordings[recordings.length - 1]?.id ? 'playing' : ''}`}
-                      title={playingId === recordings[recordings.length - 1]?.id ? 'Wiedergabe stoppen' : 'Aufnahme abspielen'}
-                    >
-                      {playingId === recordings[recordings.length - 1]?.id ? '■' : '▶'}
-                    </button>
-                  )}
-                  <span className={`rec-duration ${isRecording ? 'recording-timer' : ''}`}>
-                    {isRecording ? formatDuration(recordingTime) : formatDuration(recordings[recordings.length - 1]?.duration || 0)}
-                  </span>
-                  <span className="rec-text-preview">{recordings[recordings.length - 1]?.transcription || ""}</span>
-
-                  {!isRecording && !recordings[recordings.length - 1]?.transcription && (
-                    <div className="rec-processing-inline">
-                      <div className="standby-circle-inline"></div>
-                    </div>
-                  )}
-
-                  {!isRecording && recordings[recordings.length - 1]?.transcription && (
-                    <button
-                      onClick={() => {
-                        if (activeResult?.text === recordings[recordings.length - 1].transcription && activeResult?.title === "Transkription") {
-                          setActiveResult(null);
-                        } else {
-                          setActiveResult({ text: recordings[recordings.length - 1].transcription!, title: "Transkription" });
-                        }
-                      }}
-                      className="rec-action-btn-inline"
-                      title="Transkription anzeigen"
-                    >
-                      <img src="/transkription.png" alt="A" />
-                    </button>
-                  )}
-
-                  {!isRecording && recordings[recordings.length - 1]?.transcription && !recordings[recordings.length - 1]?.enrichment && (
-                    <button
-                      onClick={() => reEnrichWithPrompt(recordings[recordings.length - 1].id)}
-                      className="rec-action-btn-inline"
-                      disabled={enrichingId === recordings[recordings.length - 1].id}
-                      title="Mit KI anreichern"
-                    >
-                      {enrichingId === recordings[recordings.length - 1].id ? (
-                        <div className="button-spinner-inline"></div>
-                      ) : (
-                        <img src="/transkription-ai.png" alt="AI" />
-                      )}
-                    </button>
-                  )}
-
-                  {!isRecording && recordings[recordings.length - 1]?.enrichment && (
-                    <>
-                      <button
-                        onClick={() => {
-                          if (activeResult?.text === recordings[recordings.length - 1].enrichment && activeResult?.title === "Transkription + KI") {
-                            setActiveResult(null);
-                          } else {
-                            setActiveResult({ text: recordings[recordings.length - 1].enrichment!, title: "Transkription + KI" });
-                          }
-                        }}
-                        className="rec-action-btn-inline"
-                        title="KI-Analyse anzeigen"
-                      >
-                        <img src="/transkription-ai.png" alt="AI" />
-                      </button>
-                      <button
-                        onClick={() => reEnrichWithPrompt(recordings[recordings.length - 1].id)}
-                        className="rec-refresh-btn-inline"
-                        disabled={enrichingId === recordings[recordings.length - 1].id}
-                        title="Neu anreichern mit aktuellem Prompt"
-                      >
-                        {enrichingId === recordings[recordings.length - 1].id ? (
-                          <div className="button-spinner-inline"></div>
-                        ) : (
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
-                          </svg>
-                        )}
-                      </button>
-                    </>
-                  )}
-
-                  {!isRecording && recordings.length > 0 && (
-                    <button onClick={() => deleteRecording(recordings[recordings.length - 1].id)} className="rec-delete-btn" title="Löschen">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="3 6 5 6 21 6"></polyline>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        <line x1="10" y1="11" x2="10" y2="17"></line>
-                        <line x1="14" y1="11" x2="14" y2="17"></line>
-                      </svg>
-                    </button>
-                  )}
-
-                  {/* Prompt Template Selector inside the grey card */}
-                  {isTauri() && promptTemplates.length > 0 && (
-                    <>
-                      <div className="rec-divider"></div>
-                      <label htmlFor="prompt-select" className="prompt-label-inline">KI-Stil:</label>
-                      <select 
-                        id="prompt-select"
-                        value={selectedPrompt} 
-                        onChange={(e) => setSelectedPrompt(e.target.value)}
-                        className="prompt-dropdown-inline"
-                      >
-                        {promptTemplates.map((template) => (
-                          <option key={template} value={template}>{template}</option>
-                        ))}
-                      </select>
-                    </>
-                  )}
-                </div>
-                {playingId === recordings[recordings.length - 1]?.id && (
-                  <div className="playback-progress-container">
-                    <div
-                      className="playback-progress-bar"
-                      style={{ width: `${playbackProgress}%` }}
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
         </div>
       </div>
-
-      {isModelLoading && (
-        <div className="loading-overlay">
-          <div className="loading-card">
-            <div className="hourglass-container">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#ffffff"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="hourglass-icon"
-              >
-                <path d="M5 22h14" />
-                <path d="M5 2h14" />
-                <path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22" />
-                <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" />
-              </svg>
-            </div>
-            <div className="loading-text">Loading...</div>
-            <div className="loading-subtext">Download Whisper Model</div>
-          </div>
-        </div>
+        </>
       )}
 
+      {/* Error overlay - always available */}
       {errorMessage && (
         <div className="error-overlay">
           <div className="error-card">
@@ -722,6 +655,21 @@ export default function HomePage() {
           overflow-y: auto;
           overflow-x: hidden;
         }
+        
+        /* Show scrollbar for app-container */
+        .app-container::-webkit-scrollbar {
+          width: 8px;
+        }
+        .app-container::-webkit-scrollbar-track {
+          background: #1a1d23;
+        }
+        .app-container::-webkit-scrollbar-thumb {
+          background: #333;
+          border-radius: 4px;
+        }
+        .app-container::-webkit-scrollbar-thumb:hover {
+          background: #444;
+        }
 
         /* Top Panel */
         .display-panel {
@@ -731,9 +679,12 @@ export default function HomePage() {
           border-radius: 24px;
           border: 1px solid #2d323b;
           margin-bottom: 20px;
+          margin-left: 0;
+          margin-right: auto;
           transition: all 0.4s ease;
           position: relative;
           flex-shrink: 0;
+          align-self: flex-start;
         }
         .display-panel.hidden { 
           opacity: 0; 
@@ -804,8 +755,8 @@ export default function HomePage() {
           align-items: flex-start;
           gap: 0px;
           overflow-y: auto;
-          padding: 10px 0 0 0;
-          padding-left: 68px; /* 48px button + 20px gap to align with bottom row */
+          padding: 10px 0 10px 0;
+          padding-left: 68px; /* 48px button + 20px gap to align with record button */
           margin-bottom: 0;
         }
 
@@ -815,6 +766,11 @@ export default function HomePage() {
           gap: 20px;
           padding-top: 2px;
           flex-shrink: 0;
+        }
+        
+        .recording-active {
+          border: 2px solid #fa5252 !important;
+          box-shadow: 0 0 20px rgba(250, 82, 82, 0.3) !important;
         }
 
         /* Recording Item */
@@ -833,10 +789,9 @@ export default function HomePage() {
         .rec-card { 
           background: #1a1d23; 
           border: 1px solid #333; 
-          padding: 8px 18px; 
+          padding: 6px 18px; 
           border-radius: 12px; 
           width: 550px; 
-          min-height: 36px;
           box-shadow: 0 4px 15px rgba(0,0,0,0.4);
           position: relative;
           overflow: hidden;
@@ -1004,7 +959,7 @@ export default function HomePage() {
         }
         .error-icon { margin-bottom: 20px; display: flex; justify-content: center; }
         .error-title { font-size: 20px; font-weight: 700; color: #fa5252; margin: 0 0 10px; }
-        .error-message { font-size: 15px; color: #ccc; line-height: 1.5; margin-bottom: 25px; }
+        .error-message { font-size: 15px; color: #ccc; line-height: 1.5; margin-bottom: 25px; white-space: pre-line; text-align: left; }
         .error-close-btn {
           background: #fa5252; color: white; border: none; padding: 10px 24px;
           border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;

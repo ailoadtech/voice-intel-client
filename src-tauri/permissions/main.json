@@ -6,7 +6,13 @@
             "description": "Allows custom commands in main.rs",
             "commands": {
                 "allow": [
-                    "save_and_queue_recording"
+                    "save_and_queue_recording",
+                    "get_recording_audio",
+                    "delete_recording",
+                    "check_model",
+                    "get_all_recordings",
+                    "get_prompt_templates",
+                    "re_enrich_with_prompt"
                 ]
             }
         }

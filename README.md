@@ -160,7 +160,7 @@ Die App ist robust gegen häufige Fehler:
 
 ## Shortcuts
 
-- **Strg+Shift+Leertaste**: Aufnahme starten/stoppen (global)
+- **Strg+Alt+Leertaste**: Aufnahme starten/stoppen (global)
 
 ## Browser-Kompatibilität
 
