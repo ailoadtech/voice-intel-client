@@ -1,18 +1,46 @@
 // src-tauri/src/whisper.rs
 use std::fs;
+use std::path::PathBuf;
 use whisper_rs::{WhisperContext, WhisperContextParameters, FullParams, SamplingStrategy};
 
 const MODEL_URL: &str = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin";
-const MODEL_PATH: &str = "models/ggml-small.bin";
+
+// Get the base directory for app data
+pub fn get_app_dir() -> PathBuf {
+    // In development, use current directory
+    // In production, use executable directory
+    if cfg!(debug_assertions) {
+        // Development mode - use current working directory
+        std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+    } else {
+        // Production mode - use executable directory
+        if let Ok(exe_path) = std::env::current_exe() {
+            if let Some(exe_dir) = exe_path.parent() {
+                return exe_dir.to_path_buf();
+            }
+        }
+        PathBuf::from(".")
+    }
+}
+
+// Get the model path
+pub fn get_model_path() -> PathBuf {
+    get_app_dir().join("models").join("ggml-small.bin")
+}
 
 // Stellt sicher, dass das Whisper-Modell heruntergeladen und im lokalen Verzeichnis verfügbar ist.
 pub fn ensure_model() -> Result<(), Box<dyn std::error::Error>> {
-    if !std::path::Path::new(MODEL_PATH).exists() {
-        fs::create_dir_all("models")?;
-        println!("Downloading Whisper small model...");
+    let model_path = get_model_path();
+    
+    if !model_path.exists() {
+        if let Some(parent) = model_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        println!("Downloading Whisper small model to {:?}...", model_path);
         let resp = reqwest::blocking::get(MODEL_URL)?;
         let data = resp.bytes()?;
-        fs::write(MODEL_PATH, data)?;
+        fs::write(&model_path, data)?;
+        println!("Model downloaded successfully!");
     }
     Ok(())
 }
@@ -25,11 +53,13 @@ pub fn transcribe_file(timestamp: &str) -> Result<String, String> {
 // Interne Logik zur Verarbeitung der Audiodatei mit dem Whisper-Modell.
 fn inner_transcribe(timestamp: &str) -> Result<String, Box<dyn std::error::Error>> {
     ensure_model()?;
-    let rec_path = format!("recordings/{}.rec", timestamp);
-    let out_path = format!("recordings/{}.whisper.txt", timestamp);
+    let app_dir = get_app_dir();
+    let rec_path = app_dir.join("recordings").join(format!("{}.rec", timestamp));
+    let out_path = app_dir.join("recordings").join(format!("{}.whisper.txt", timestamp));
 
+    let model_path = get_model_path();
     let params = WhisperContextParameters::default();
-    let ctx = WhisperContext::new_with_params(MODEL_PATH, params)?;
+    let ctx = WhisperContext::new_with_params(model_path.to_str().unwrap(), params)?;
     let mut state = ctx.create_state()?;
 
     let mut reader = hound::WavReader::open(&rec_path)?;

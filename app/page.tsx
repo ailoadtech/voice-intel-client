@@ -1,7 +1,7 @@
 // app/page.tsx
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 // Utility: Check if running inside Tauri
@@ -142,24 +142,7 @@ export default function HomePage() {
     loadPromptTemplates();
   }, []);
 
-  // Hotkey listener
-  useEffect(() => {
-    if (!isTauri()) return;
-
-    const unlisten = (window as any).__TAURI__.event.listen("hotkey-triggered", () => {
-      if (!isRecording) {
-        startRecording();
-      } else {
-        stopRecording();
-      }
-    });
-
-    return () => {
-      unlisten.then((f: any) => f());
-    };
-  }, [isRecording]);
-
-  const startRecording = async () => {
+  const startRecording = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const audioChunks: Blob[] = [];
@@ -192,7 +175,7 @@ export default function HomePage() {
         if (isTauri()) {
           try {
             const id = await invoke("save_and_queue_recording", { samples: Array.from(samples) }) as string;
-            audioBlobs.current.set(id, blob);
+            audioBlobs.current.set(id, blob); // Store the blob for playback
             const newRec: Recording = {
               id,
               date: dateStr,
@@ -206,9 +189,12 @@ export default function HomePage() {
               updated.sort((a, b) => parseInt(b.id) - parseInt(a.id));
               return updated;
             });
+            setStatus("Gespeichert");
+            console.log("Recording saved with ID:", id);
           } catch (e) {
             console.error("Save error:", e);
             setStatus("Fehler beim Speichern");
+            setErrorMessage("Fehler beim Speichern der Aufnahme: " + (e as any).toString());
           }
         } else {
           // Browser Mode: Use Worker
@@ -259,15 +245,35 @@ export default function HomePage() {
         setErrorMessage("Fehler beim Zugriff auf das Mikrofon: " + (err.message || "Unbekannter Fehler"));
       }
     }
-  };
+  }, []);
 
-  const stopRecording = () => {
+  const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       if (timerRef.current) clearInterval(timerRef.current);
     }
-  };
+  }, [isRecording]);
+
+  // Hotkey listener
+  useEffect(() => {
+    if (!isTauri()) return;
+
+    const handleHotkey = () => {
+      console.log("Hotkey triggered! isRecording:", isRecording);
+      if (!isRecording) {
+        startRecording();
+      } else {
+        stopRecording();
+      }
+    };
+
+    const unlisten = (window as any).__TAURI__.event.listen("hotkey-triggered", handleHotkey);
+
+    return () => {
+      unlisten.then((f: any) => f());
+    };
+  }, [isRecording, startRecording, stopRecording]);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -326,15 +332,19 @@ export default function HomePage() {
 
     try {
       let blob = audioBlobs.current.get(id);
+      console.log("Playing recording:", id, "Blob in memory:", !!blob);
 
       if (!blob && isTauri()) {
         // Fetch from Rust if not in memory
+        console.log("Fetching audio from Rust backend...");
         const audioData = await invoke("get_recording_audio", { id }) as number[];
+        console.log("Received audio data, length:", audioData.length);
         blob = new Blob([new Uint8Array(audioData)], { type: "audio/wav" });
         audioBlobs.current.set(id, blob);
       }
 
       if (blob) {
+        console.log("Creating audio URL from blob, size:", blob.size);
         const url = URL.createObjectURL(blob);
         if (audioRef.current) {
           audioRef.current.pause();
@@ -355,12 +365,22 @@ export default function HomePage() {
           URL.revokeObjectURL(url);
         };
 
+        audio.onerror = (e) => {
+          console.error("Audio playback error:", e);
+          setPlayingId(null);
+          setPlaybackProgress(0);
+          URL.revokeObjectURL(url);
+        };
+
         await audio.play();
+        console.log("Audio playback started");
       } else {
         console.error("Audio data not found for id:", id);
+        setErrorMessage("Audio-Datei nicht gefunden");
       }
     } catch (err) {
       console.error("Playback error:", err);
+      setErrorMessage("Fehler bei der Wiedergabe: " + (err as any).toString());
     }
   };
 
@@ -380,23 +400,6 @@ export default function HomePage() {
       {/* Main Content Area */}
       <div className="main-content">
 
-        {/* Prompt Template Selector */}
-        {isTauri() && promptTemplates.length > 0 && (
-          <div className="prompt-selector">
-            <label htmlFor="prompt-select" className="prompt-label">KI-Stil:</label>
-            <select 
-              id="prompt-select"
-              value={selectedPrompt} 
-              onChange={(e) => setSelectedPrompt(e.target.value)}
-              className="prompt-dropdown"
-            >
-              {promptTemplates.map((template) => (
-                <option key={template} value={template}>{template}</option>
-              ))}
-            </select>
-          </div>
-        )}
-
         {/* History Stack (All recordings except the one being shown next to record button) */}
         <div className="history-stack custom-scrollbar">
           {recordings.slice(0, -1).map((rec) => (
@@ -407,11 +410,82 @@ export default function HomePage() {
                   <button
                     onClick={() => playRecording(rec.id)}
                     className={`rec-play-btn ${playingId === rec.id ? 'playing' : ''}`}
+                    title={playingId === rec.id ? 'Wiedergabe stoppen' : 'Aufnahme abspielen'}
                   >
                     {playingId === rec.id ? '■' : '▶'}
                   </button>
                   <span className="rec-duration">{formatDuration(rec.duration)}</span>
                   <span className="rec-text-preview">{rec.transcription || ""}</span>
+                  
+                  {!rec.transcription && (
+                    <div className="rec-processing-inline">
+                      <div className="standby-circle-inline"></div>
+                    </div>
+                  )}
+
+                  {rec.transcription && (
+                    <button
+                      onClick={() => {
+                        if (activeResult?.text === rec.transcription && activeResult?.title === "Transkription") {
+                          setActiveResult(null);
+                        } else {
+                          setActiveResult({ text: rec.transcription!, title: "Transkription" });
+                        }
+                      }}
+                      className="rec-action-btn-inline"
+                      title="Transkription anzeigen"
+                    >
+                      <img src="/transkription.png" alt="A" />
+                    </button>
+                  )}
+
+                  {rec.transcription && !rec.enrichment && (
+                    <button
+                      onClick={() => reEnrichWithPrompt(rec.id)}
+                      className="rec-action-btn-inline"
+                      disabled={enrichingId === rec.id}
+                      title="Mit KI anreichern"
+                    >
+                      {enrichingId === rec.id ? (
+                        <div className="button-spinner-inline"></div>
+                      ) : (
+                        <img src="/transkription-ai.png" alt="AI" />
+                      )}
+                    </button>
+                  )}
+
+                  {rec.enrichment && (
+                    <>
+                      <button
+                        onClick={() => {
+                          if (activeResult?.text === rec.enrichment && activeResult?.title === "Transkription + KI") {
+                            setActiveResult(null);
+                          } else {
+                            setActiveResult({ text: rec.enrichment!, title: "Transkription + KI" });
+                          }
+                        }}
+                        className="rec-action-btn-inline"
+                        title="KI-Analyse anzeigen"
+                      >
+                        <img src="/transkription-ai.png" alt="AI" />
+                      </button>
+                      <button
+                        onClick={() => reEnrichWithPrompt(rec.id)}
+                        className="rec-refresh-btn-inline"
+                        disabled={enrichingId === rec.id}
+                        title="Neu anreichern mit aktuellem Prompt"
+                      >
+                        {enrichingId === rec.id ? (
+                          <div className="button-spinner-inline"></div>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                          </svg>
+                        )}
+                      </button>
+                    </>
+                  )}
+
                   <button onClick={() => deleteRecording(rec.id)} className="rec-delete-btn" title="Löschen">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="3 6 5 6 21 6"></polyline>
@@ -430,61 +504,6 @@ export default function HomePage() {
                   </div>
                 )}
               </div>
-
-              {!rec.transcription && (
-                <div className="rec-processing">
-                  <div className="standby-circle"></div>
-                </div>
-              )}
-
-              {rec.transcription && (
-                <button
-                  onClick={() => setActiveResult({ text: rec.transcription!, title: "Original Transkription" })}
-                  className="rec-action-btn"
-                >
-                  <img src="/transkription.png" alt="A" />
-                </button>
-              )}
-
-              {rec.transcription && !rec.enrichment && (
-                <button
-                  onClick={() => reEnrichWithPrompt(rec.id)}
-                  className="rec-action-btn ai-btn"
-                  disabled={enrichingId === rec.id}
-                  title="Mit KI anreichern"
-                >
-                  {enrichingId === rec.id ? (
-                    <div className="button-spinner"></div>
-                  ) : (
-                    <img src="/transkription-ai.png" alt="AI" />
-                  )}
-                </button>
-              )}
-
-              {rec.enrichment && (
-                <>
-                  <button
-                    onClick={() => setActiveResult({ text: rec.enrichment!, title: "KI-Strukturierte Analyse" })}
-                    className="rec-action-btn ai-btn"
-                  >
-                    <img src="/transkription-ai.png" alt="AI" />
-                  </button>
-                  <button
-                    onClick={() => reEnrichWithPrompt(rec.id)}
-                    className="rec-refresh-btn"
-                    disabled={enrichingId === rec.id}
-                    title="Neu anreichern mit aktuellem Prompt"
-                  >
-                    {enrichingId === rec.id ? (
-                      <div className="button-spinner-small"></div>
-                    ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
-                      </svg>
-                    )}
-                  </button>
-                </>
-              )}
             </div>
           ))}
 
@@ -519,6 +538,7 @@ export default function HomePage() {
                     <button
                       onClick={() => recordings.length > 0 && playRecording(recordings[recordings.length - 1].id)}
                       className={`rec-play-btn ${playingId === recordings[recordings.length - 1]?.id ? 'playing' : ''}`}
+                      title={playingId === recordings[recordings.length - 1]?.id ? 'Wiedergabe stoppen' : 'Aufnahme abspielen'}
                     >
                       {playingId === recordings[recordings.length - 1]?.id ? '■' : '▶'}
                     </button>
@@ -527,6 +547,76 @@ export default function HomePage() {
                     {isRecording ? formatDuration(recordingTime) : formatDuration(recordings[recordings.length - 1]?.duration || 0)}
                   </span>
                   <span className="rec-text-preview">{recordings[recordings.length - 1]?.transcription || ""}</span>
+
+                  {!isRecording && !recordings[recordings.length - 1]?.transcription && (
+                    <div className="rec-processing-inline">
+                      <div className="standby-circle-inline"></div>
+                    </div>
+                  )}
+
+                  {!isRecording && recordings[recordings.length - 1]?.transcription && (
+                    <button
+                      onClick={() => {
+                        if (activeResult?.text === recordings[recordings.length - 1].transcription && activeResult?.title === "Transkription") {
+                          setActiveResult(null);
+                        } else {
+                          setActiveResult({ text: recordings[recordings.length - 1].transcription!, title: "Transkription" });
+                        }
+                      }}
+                      className="rec-action-btn-inline"
+                      title="Transkription anzeigen"
+                    >
+                      <img src="/transkription.png" alt="A" />
+                    </button>
+                  )}
+
+                  {!isRecording && recordings[recordings.length - 1]?.transcription && !recordings[recordings.length - 1]?.enrichment && (
+                    <button
+                      onClick={() => reEnrichWithPrompt(recordings[recordings.length - 1].id)}
+                      className="rec-action-btn-inline"
+                      disabled={enrichingId === recordings[recordings.length - 1].id}
+                      title="Mit KI anreichern"
+                    >
+                      {enrichingId === recordings[recordings.length - 1].id ? (
+                        <div className="button-spinner-inline"></div>
+                      ) : (
+                        <img src="/transkription-ai.png" alt="AI" />
+                      )}
+                    </button>
+                  )}
+
+                  {!isRecording && recordings[recordings.length - 1]?.enrichment && (
+                    <>
+                      <button
+                        onClick={() => {
+                          if (activeResult?.text === recordings[recordings.length - 1].enrichment && activeResult?.title === "Transkription + KI") {
+                            setActiveResult(null);
+                          } else {
+                            setActiveResult({ text: recordings[recordings.length - 1].enrichment!, title: "Transkription + KI" });
+                          }
+                        }}
+                        className="rec-action-btn-inline"
+                        title="KI-Analyse anzeigen"
+                      >
+                        <img src="/transkription-ai.png" alt="AI" />
+                      </button>
+                      <button
+                        onClick={() => reEnrichWithPrompt(recordings[recordings.length - 1].id)}
+                        className="rec-refresh-btn-inline"
+                        disabled={enrichingId === recordings[recordings.length - 1].id}
+                        title="Neu anreichern mit aktuellem Prompt"
+                      >
+                        {enrichingId === recordings[recordings.length - 1].id ? (
+                          <div className="button-spinner-inline"></div>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                          </svg>
+                        )}
+                      </button>
+                    </>
+                  )}
+
                   {!isRecording && recordings.length > 0 && (
                     <button onClick={() => deleteRecording(recordings[recordings.length - 1].id)} className="rec-delete-btn" title="Löschen">
                       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -536,6 +626,24 @@ export default function HomePage() {
                         <line x1="14" y1="11" x2="14" y2="17"></line>
                       </svg>
                     </button>
+                  )}
+
+                  {/* Prompt Template Selector inside the grey card */}
+                  {isTauri() && promptTemplates.length > 0 && (
+                    <>
+                      <div className="rec-divider"></div>
+                      <label htmlFor="prompt-select" className="prompt-label-inline">KI-Stil:</label>
+                      <select 
+                        id="prompt-select"
+                        value={selectedPrompt} 
+                        onChange={(e) => setSelectedPrompt(e.target.value)}
+                        className="prompt-dropdown-inline"
+                      >
+                        {promptTemplates.map((template) => (
+                          <option key={template} value={template}>{template}</option>
+                        ))}
+                      </select>
+                    </>
                   )}
                 </div>
                 {playingId === recordings[recordings.length - 1]?.id && (
@@ -547,61 +655,6 @@ export default function HomePage() {
                   </div>
                 )}
               </div>
-
-              {!isRecording && !recordings[recordings.length - 1]?.transcription && (
-                <div className="rec-processing">
-                  <div className="standby-circle"></div>
-                </div>
-              )}
-
-              {!isRecording && recordings[recordings.length - 1]?.transcription && (
-                <button
-                  onClick={() => setActiveResult({ text: recordings[recordings.length - 1].transcription!, title: "Original Transkription" })}
-                  className="rec-action-btn"
-                >
-                  <img src="/transkription.png" alt="A" />
-                </button>
-              )}
-
-              {!isRecording && recordings[recordings.length - 1]?.transcription && !recordings[recordings.length - 1]?.enrichment && (
-                <button
-                  onClick={() => reEnrichWithPrompt(recordings[recordings.length - 1].id)}
-                  className="rec-action-btn ai-btn"
-                  disabled={enrichingId === recordings[recordings.length - 1].id}
-                  title="Mit KI anreichern"
-                >
-                  {enrichingId === recordings[recordings.length - 1].id ? (
-                    <div className="button-spinner"></div>
-                  ) : (
-                    <img src="/transkription-ai.png" alt="AI" />
-                  )}
-                </button>
-              )}
-
-              {!isRecording && recordings[recordings.length - 1]?.enrichment && (
-                <>
-                  <button
-                    onClick={() => setActiveResult({ text: recordings[recordings.length - 1].enrichment!, title: "KI-Strukturierte Analyse" })}
-                    className="rec-action-btn ai-btn"
-                  >
-                    <img src="/transkription-ai.png" alt="AI" />
-                  </button>
-                  <button
-                    onClick={() => reEnrichWithPrompt(recordings[recordings.length - 1].id)}
-                    className="rec-refresh-btn"
-                    disabled={enrichingId === recordings[recordings.length - 1].id}
-                    title="Neu anreichern mit aktuellem Prompt"
-                  >
-                    {enrichingId === recordings[recordings.length - 1].id ? (
-                      <div className="button-spinner-small"></div>
-                    ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
-                      </svg>
-                    )}
-                  </button>
-                </>
-              )}
             </div>
           )}
         </div>
@@ -666,7 +719,8 @@ export default function HomePage() {
           align-items: flex-start;
           padding: 20px 40px;
           box-sizing: border-box;
-          overflow: hidden;
+          overflow-y: auto;
+          overflow-x: hidden;
         }
 
         /* Top Panel */
@@ -695,7 +749,7 @@ export default function HomePage() {
         .panel-close { position: absolute; top: 15px; right: 20px; background: none; border: none; color: #666; cursor: pointer; font-size: 20px; transition: color 0.2s; }
         .panel-close:hover { color: white; }
         .panel-title { color: #4dabf7; font-size: 13px; text-transform: uppercase; letter-spacing: 2.5px; margin-bottom: 15px; font-weight: 700; }
-        .panel-body { font-size: 17px; line-height: 1.6; color: #d1d5db; }
+        .panel-body { font-size: 17px; line-height: 1.6; color: #d1d5db; word-wrap: break-word; overflow-wrap: break-word; white-space: pre-wrap; }
         
 
         
@@ -709,34 +763,36 @@ export default function HomePage() {
           padding-bottom: 20px;
         }
 
-        /* Prompt Selector */
-        .prompt-selector {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin-bottom: 15px;
-          padding-left: 68px;
+        /* Prompt Selector - Inline version inside rec-card */
+        .rec-divider {
+          width: 1px;
+          height: 20px;
+          background: #444;
+          flex-shrink: 0;
+          margin: 0 4px;
         }
-        .prompt-label {
+        .prompt-label-inline {
           font-size: 13px;
           color: #aaa;
           font-weight: 500;
+          flex-shrink: 0;
         }
-        .prompt-dropdown {
-          background: #1a1d23;
-          border: 1px solid #333;
+        .prompt-dropdown-inline {
+          background: #0f1115;
+          border: 1px solid #444;
           color: #e0e0e0;
-          padding: 8px 16px;
-          border-radius: 8px;
-          font-size: 13px;
+          padding: 4px 12px;
+          border-radius: 6px;
+          font-size: 12px;
           cursor: pointer;
           transition: all 0.2s;
           outline: none;
+          flex-shrink: 0;
         }
-        .prompt-dropdown:hover {
+        .prompt-dropdown-inline:hover {
           border-color: #4dabf7;
         }
-        .prompt-dropdown:focus {
+        .prompt-dropdown-inline:focus {
           border-color: #4dabf7;
           box-shadow: 0 0 0 2px rgba(77, 171, 247, 0.1);
         }
@@ -744,7 +800,7 @@ export default function HomePage() {
         .history-stack {
           flex: 1;
           display: flex;
-          flex-direction: column; /* Newest on top */
+          flex-direction: column-reverse; /* Newest on bottom */
           align-items: flex-start;
           gap: 0px;
           overflow-y: auto;
@@ -765,7 +821,6 @@ export default function HomePage() {
         .rec-item { 
           display: flex; 
           align-items: flex-start; 
-          gap: 15px; 
           animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
           flex-shrink: 0;
         }
@@ -806,45 +861,53 @@ export default function HomePage() {
         .rec-footer { display: flex; align-items: center; gap: 8px; }
         .rec-play-btn, .rec-delete-btn { background: none; border: none; color: #aaa; cursor: pointer; font-size: 18px; transition: all 0.2s; width: 26px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .rec-play-btn:hover { color: #4dabf7; transform: scale(1.1); }
-        .rec-play-btn.playing { color: #fa5252; }
+        .rec-play-btn.playing { color: #aaa; }
+        .rec-play-btn.playing:hover { color: #4dabf7; transform: scale(1.1); }
         .rec-delete-btn:hover { color: #fa5252; transform: scale(1.1); }
         .rec-duration { font-family: monospace; font-size: 12px; color: #666; flex-shrink: 0; }
         .rec-text-preview { flex: 1; font-size: 13px; color: #777; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; text-align: left; }
         
-        .rec-action-btn { 
-          width: 54px; height: 54px; background: white; border-radius: 12px; 
+        /* Inline action buttons inside rec-card */
+        .rec-action-btn-inline { 
+          width: 26px; height: 26px; background: white; border-radius: 6px; 
           border: none; cursor: pointer; transition: all 0.2s; 
-          display: flex; align-items: center; justify-content: center; padding: 10px;
-          box-shadow: 0 5px 10px rgba(0,0,0,0.3);
+          display: flex; align-items: center; justify-content: center; padding: 4px;
+          flex-shrink: 0;
         }
-        .rec-action-btn:hover { transform: scale(1.1); }
-        .rec-action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .rec-action-btn:disabled:hover { transform: scale(1); }
-        .rec-action-btn img { width: 100%; height: 100%; object-fit: contain; }
+        .rec-action-btn-inline:hover { transform: scale(1.1); }
+        .rec-action-btn-inline:disabled { opacity: 0.5; cursor: not-allowed; }
+        .rec-action-btn-inline:disabled:hover { transform: scale(1); }
+        .rec-action-btn-inline img { width: 100%; height: 100%; object-fit: contain; }
         
-        .rec-refresh-btn {
-          width: 32px; height: 32px; background: #1a1d23; border-radius: 8px;
+        .rec-refresh-btn-inline {
+          width: 26px; height: 26px; background: transparent; border-radius: 6px;
           border: 1px solid #333; cursor: pointer; transition: all 0.2s;
           display: flex; align-items: center; justify-content: center;
-          color: #4dabf7;
+          color: #4dabf7; flex-shrink: 0;
         }
-        .rec-refresh-btn:hover { 
+        .rec-refresh-btn-inline:hover { 
           background: #4dabf7; 
           color: white; 
           transform: scale(1.1); 
         }
-        .rec-refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .rec-refresh-btn:disabled:hover { transform: scale(1); background: #1a1d23; color: #4dabf7; }
+        .rec-refresh-btn-inline:disabled { opacity: 0.5; cursor: not-allowed; }
+        .rec-refresh-btn-inline:disabled:hover { transform: scale(1); background: transparent; color: #4dabf7; }
 
-        .button-spinner {
-          width: 28px; height: 28px;
-          border: 3px solid rgba(77, 171, 247, 0.2);
-          border-top-color: #4dabf7;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
+        .rec-processing-inline {
+          width: 26px; height: 26px; 
+          display: flex; align-items: center; justify-content: center;
+          flex-shrink: 0;
         }
-        .button-spinner-small {
+        .standby-circle-inline {
           width: 16px; height: 16px;
+          border: 2px solid rgba(77, 171, 247, 0.5);
+          border-radius: 50%;
+          background: transparent;
+          animation: pulse-standby 2s ease-in-out infinite;
+        }
+
+        .button-spinner-inline {
+          width: 18px; height: 18px;
           border: 2px solid rgba(77, 171, 247, 0.2);
           border-top-color: #4dabf7;
           border-radius: 50%;
@@ -912,24 +975,6 @@ export default function HomePage() {
         .loading-text { font-size: 22px; font-weight: 700; color: #4dabf7; margin-bottom: 12px; }
         .loading-subtext { font-size: 14px; color: #555; }
 
-        .rec-processing {
-          width: 54px; height: 54px; 
-          display: flex; align-items: center; justify-content: center;
-        }
-        .processing-spinner {
-          width: 24px; height: 24px;
-          border: 3px solid rgba(255, 255, 255, 0.1);
-          border-top-color: #4dabf7;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-        }
-        .standby-circle {
-          width: 24px; height: 24px;
-          border: 3px solid rgba(77, 171, 247, 0.5);
-          border-radius: 50%;
-          background: transparent;
-          animation: pulse-standby 2s ease-in-out infinite;
-        }
         @keyframes spin {
           to { transform: rotate(360deg); }
         }

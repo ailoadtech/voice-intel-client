@@ -7,7 +7,25 @@ use serde::Serialize;
 use tauri::{Manager, async_runtime, Emitter};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, Modifiers, Code, ShortcutState};
 use std::time::Duration;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+// Get the base directory for app data
+fn get_app_dir() -> PathBuf {
+    // In development, use current directory
+    // In production, use executable directory
+    if cfg!(debug_assertions) {
+        // Development mode - use current working directory
+        std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+    } else {
+        // Production mode - use executable directory
+        if let Ok(exe_path) = std::env::current_exe() {
+            if let Some(exe_dir) = exe_path.parent() {
+                return exe_dir.to_path_buf();
+            }
+        }
+        PathBuf::from(".")
+    }
+}
 
 #[derive(Clone, Serialize)]
 struct ProcessPayload {
@@ -34,12 +52,13 @@ async fn save_and_queue_recording(samples: Vec<i16>) -> Result<String, String> {
 
 #[tauri::command]
 async fn get_recording_audio(id: String) -> Result<Vec<u8>, String> {
-    let processed_path = format!("recordings/{}.processed", id);
-    let rec_path = format!("recordings/{}.rec", id);
+    let app_dir = get_app_dir();
+    let processed_path = app_dir.join("recordings").join(format!("{}.processed", id));
+    let rec_path = app_dir.join("recordings").join(format!("{}.rec", id));
 
-    let path = if std::path::Path::new(&processed_path).exists() {
+    let path = if processed_path.exists() {
         processed_path
-    } else if std::path::Path::new(&rec_path).exists() {
+    } else if rec_path.exists() {
         rec_path
     } else {
         return Err("Recording not found".to_string());
@@ -50,10 +69,11 @@ async fn get_recording_audio(id: String) -> Result<Vec<u8>, String> {
 
 #[tauri::command]
 async fn delete_recording(id: String) -> Result<(), String> {
+    let app_dir = get_app_dir();
     let extensions = ["rec", "processed", "whisper.txt", "enriched.txt"];
     for ext in extensions {
-        let path = format!("recordings/{}.{}", id, ext);
-        if std::path::Path::new(&path).exists() {
+        let path = app_dir.join("recordings").join(format!("{}.{}", id, ext));
+        if path.exists() {
             let _ = std::fs::remove_file(path);
         }
     }
@@ -77,7 +97,8 @@ async fn get_prompt_templates() -> Result<Vec<String>, String> {
 
 #[tauri::command]
 async fn re_enrich_with_prompt(id: String, prompt_name: String) -> Result<String, String> {
-    let whisper_path = format!("recordings/{}.whisper.txt", id);
+    let app_dir = get_app_dir();
+    let whisper_path = app_dir.join("recordings").join(format!("{}.whisper.txt", id));
     let transcript = tokio::fs::read_to_string(&whisper_path).await
         .map_err(|e| format!("Failed to read transcription: {}", e))?;
     
@@ -89,8 +110,16 @@ async fn re_enrich_with_prompt(id: String, prompt_name: String) -> Result<String
 #[tauri::command]
 async fn get_all_recordings() -> Result<Vec<Recording>, String> {
     let mut recordings = Vec::new();
+    let app_dir = get_app_dir();
+    let recordings_dir = app_dir.join("recordings");
     
-    if let Ok(entries) = std::fs::read_dir("recordings") {
+    // Ensure recordings directory exists
+    if !recordings_dir.exists() {
+        std::fs::create_dir_all(&recordings_dir).map_err(|e| e.to_string())?;
+        return Ok(recordings);
+    }
+    
+    if let Ok(entries) = std::fs::read_dir(&recordings_dir) {
         for entry in entries.filter_map(|e| e.ok()) {
             let path = entry.path();
             
@@ -101,11 +130,11 @@ async fn get_all_recordings() -> Result<Vec<Recording>, String> {
                         let id = stem.to_string();
                         
                         // Read transcription if exists
-                        let whisper_path = format!("recordings/{}.whisper.txt", id);
+                        let whisper_path = recordings_dir.join(format!("{}.whisper.txt", id));
                         let transcription = std::fs::read_to_string(&whisper_path).ok();
                         
                         // Read enrichment if exists
-                        let enriched_path = format!("recordings/{}.enriched.txt", id);
+                        let enriched_path = recordings_dir.join(format!("{}.enriched.txt", id));
                         let enrichment = std::fs::read_to_string(&enriched_path).ok();
                         
                         // Determine status
@@ -179,8 +208,11 @@ fn main() {
             // Spawn background worker
             async_runtime::spawn(async move {
                 loop {
+                    let app_dir = get_app_dir();
+                    let recordings_dir = app_dir.join("recordings");
+                    
                     let mut rec_files = Vec::new();
-                    if let Ok(entries) = std::fs::read_dir("recordings") {
+                    if let Ok(entries) = std::fs::read_dir(&recordings_dir) {
                         for entry in entries.filter_map(|e| e.ok()) {
                             let path = entry.path();
                             if path.extension().map_or(false, |ext| ext == "rec") {

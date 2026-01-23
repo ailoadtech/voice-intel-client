@@ -1,6 +1,25 @@
 // src-tauri/src/llm.rs
 use std::fs;
+use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
+
+// Get the base directory for app data
+pub fn get_app_dir() -> PathBuf {
+    // In development, use current directory
+    // In production, use executable directory
+    if cfg!(debug_assertions) {
+        // Development mode - use current working directory
+        std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+    } else {
+        // Production mode - use executable directory
+        if let Ok(exe_path) = std::env::current_exe() {
+            if let Some(exe_dir) = exe_path.parent() {
+                return exe_dir.to_path_buf();
+            }
+        }
+        PathBuf::from(".")
+    }
+}
 
 #[derive(Serialize)]
 struct OllamaRequest {
@@ -30,7 +49,9 @@ async fn inner_enrich_and_save(
     config: &super::config::LlmConfig,
     prompt_name: Option<&str>,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    let out_path = format!("recordings/{}.enriched.txt", timestamp);
+    let app_dir = get_app_dir();
+    let out_path = app_dir.join("recordings").join(format!("{}.enriched.txt", timestamp));
+    
     if !config.enabled {
         fs::write(&out_path, transcript)?;
         return Ok(transcript.to_string());

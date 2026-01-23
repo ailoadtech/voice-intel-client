@@ -1,7 +1,26 @@
 // src-tauri/src/config.rs
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::path::PathBuf;
 use std::collections::HashMap;
+
+// Get the base directory for app data
+pub fn get_app_dir() -> PathBuf {
+    // In development, use current directory
+    // In production, use executable directory
+    if cfg!(debug_assertions) {
+        // Development mode - use current working directory
+        std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+    } else {
+        // Production mode - use executable directory
+        if let Ok(exe_path) = std::env::current_exe() {
+            if let Some(exe_dir) = exe_path.parent() {
+                return exe_dir.to_path_buf();
+            }
+        }
+        PathBuf::from(".")
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LlmConfig {
@@ -67,11 +86,13 @@ impl AppConfig {
 
     // Interne Logik zum Laden oder Erstellen der Konfigurationsdatei.
     fn inner_load_or_create() -> Result<Self, Box<dyn std::error::Error>> {
-        if !std::path::Path::new("config.json").exists() {
+        let config_path = get_app_dir().join("config.json");
+        
+        if !config_path.exists() {
             let default = Self::default();
-            fs::write("config.json", serde_json::to_string_pretty(&default)?)?;
+            fs::write(&config_path, serde_json::to_string_pretty(&default)?)?;
         }
-        let content = fs::read_to_string("config.json")?;
+        let content = fs::read_to_string(&config_path)?;
         Ok(serde_json::from_str(&content)?)
     }
 }
