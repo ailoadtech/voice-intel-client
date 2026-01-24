@@ -212,10 +212,10 @@ Leider ist das aber nicht so erfolgreich wie gedacht.
 Die größten Probleme hat mir die Umgebung gemacht. Ich habe zuerst alles auf meiner AWS EC2
 mit einem Dockerfile aufgebaut, was nicht die richtige Entscheidung war.
 Dann habe ich alles auf meinem Windows neu aufgebaut, um zum Kompilieren.
-Aber auf Grund von verschiedenen Visual Studios und Code und Windows Dependencies hat das nicht funktioniert.
+Aber auf Grund von verschiedenen Visual Studios und Code und Windows Dependencies hat das alles nicht funktioniert.
 Letzter Versuch war dann Github Action zu benutzen und nach einigen Iterationen macht es nun einen Build der 13 Minuten dauert.
 
-Die Aufgabe ist meine erste Application rein mit KI und habe ich habe sehr viel dabei gelernt.
+Die Aufgabe ist meine erste Application rein mit KI und ich habe dabei sehr viel gelernt.
 
 ## Credits
 

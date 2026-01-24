@@ -5,24 +5,17 @@ use hound::{WavSpec, WavWriter};
 
 // Get the base directory for app data
 pub fn get_app_dir() -> PathBuf {
-    // In development, use current directory
-    // In production, use executable directory
-    if cfg!(debug_assertions) {
-        // Development mode - use current working directory
-        let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-        println!("Development mode - using working directory: {:?}", cwd);
-        cwd
-    } else {
-        // Production mode - use executable directory
-        if let Ok(exe_path) = std::env::current_exe() {
-            if let Some(exe_dir) = exe_path.parent() {
-                println!("Production mode - using executable directory: {:?}", exe_dir);
-                return exe_dir.to_path_buf();
-            }
+    // Always use executable directory for portable app
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            println!("Using executable directory: {:?}", exe_dir);
+            return exe_dir.to_path_buf();
         }
-        println!("Fallback - using current directory");
-        PathBuf::from(".")
     }
+    
+    // Fallback to current directory
+    println!("WARNING: Could not determine executable directory, using current directory");
+    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
 }
 
 // Speichert Audiosamples als WAV-Datei mit einem Unix-Zeitstempel im Verzeichnis 'recordings'.

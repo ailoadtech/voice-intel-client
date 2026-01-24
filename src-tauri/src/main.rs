@@ -14,20 +14,17 @@ use std::path::{Path, PathBuf};
 
 // Get the base directory for app data
 fn get_app_dir() -> PathBuf {
-    // In development, use current directory
-    // In production, use executable directory
-    if cfg!(debug_assertions) {
-        // Development mode - use current working directory
-        std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
-    } else {
-        // Production mode - use executable directory
-        if let Ok(exe_path) = std::env::current_exe() {
-            if let Some(exe_dir) = exe_path.parent() {
-                return exe_dir.to_path_buf();
-            }
+    // Always use executable directory for portable app
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            println!("Using executable directory: {:?}", exe_dir);
+            return exe_dir.to_path_buf();
         }
-        PathBuf::from(".")
     }
+    
+    // Fallback to current directory
+    println!("WARNING: Could not determine executable directory, using current directory");
+    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
 }
 
 #[derive(Clone, Serialize)]

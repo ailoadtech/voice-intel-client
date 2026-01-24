@@ -720,30 +720,44 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* History Stack - ALL recordings including current/newest */}
-        <div className="history-stack custom-scrollbar">
-          {/* Show current recording if recording */}
-          {isRecording && (
-            <div className="rec-item">
-              <div className="rec-card recording-active">
-                <div className="rec-footer">
-                  <div className="rec-time">
-                    {new Date().toLocaleDateString('de-DE').replace(/\//g, '.') + ' - ' + new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + ' h'}
+        {/* History Stack and Record Button - Horizontal Layout */}
+        <div className="controls-and-history">
+          {/* Record Button */}
+          <div className="record-section">
+            <button
+              onClick={isRecording ? stopRecording : startRecording}
+              className={`record-toggle ${isRecording ? 'recording' : 'idle'}`}
+              disabled={isModelLoading}
+              title={isRecording ? "Aufnahme stoppen Ctrl+Shift+Space" : "Aufnahme starten Ctrl+Shift+Space"}
+            >
+              <div className="record-indicator"></div>
+            </button>
+          </div>
+
+          {/* History Stack - ALL recordings including current/newest */}
+          <div className="history-stack custom-scrollbar">
+            {/* Show current recording if recording */}
+            {isRecording && (
+              <div className="rec-item">
+                <div className="rec-card recording-active">
+                  <div className="rec-footer">
+                    <div className="rec-time">
+                      {new Date().toLocaleDateString('de-DE').replace(/\//g, '.') + ' - ' + new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + ' h'}
+                    </div>
+                    <div className="rec-play-btn recording-dot-container">
+                      <span className="recording-dot-pulse"></span>
+                    </div>
+                    <span className="rec-duration recording-timer">
+                      {formatDuration(recordingTime)}
+                    </span>
+                    <span className="rec-text-preview">Aufnahme läuft...</span>
                   </div>
-                  <div className="rec-play-btn recording-dot-container">
-                    <span className="recording-dot-pulse"></span>
-                  </div>
-                  <span className="rec-duration recording-timer">
-                    {formatDuration(recordingTime)}
-                  </span>
-                  <span className="rec-text-preview">Aufnahme läuft...</span>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Show all saved recordings */}
-          {recordings.map((rec) => (
+            {/* Show all saved recordings */}
+            {recordings.map((rec) => (
             <div key={rec.id} className="rec-item">
               <div className="rec-card">
                 <div className="rec-footer">
@@ -758,98 +772,100 @@ export default function HomePage() {
                   <span className="rec-duration">{formatDuration(rec.duration)}</span>
                   <span className="rec-text-preview">{rec.transcription || ""}</span>
                   
-                  {!rec.transcription && (
-                    <div className="rec-processing-inline">
-                      <div className="standby-circle-inline"></div>
-                    </div>
-                  )}
+                  <div className="rec-footer-actions">
+                    {!rec.transcription && (
+                      <div className="rec-processing-inline">
+                        <div className="standby-circle-inline"></div>
+                      </div>
+                    )}
 
-                  {rec.transcription && (
-                    <button
-                      onClick={() => {
-                        if (activeResult?.text === rec.transcription && activeResult?.title === "Transkription") {
-                          setActiveResult(null);
-                        } else {
-                          setActiveResult({ text: rec.transcription!, title: "Transkription" });
-                        }
-                      }}
-                      className="rec-action-btn-inline"
-                      title="Transkription anzeigen"
-                    >
-                      <img src="/transkription.png" alt="A" />
-                    </button>
-                  )}
-
-                  {rec.transcription && !rec.enrichment && isModelAvailable && (
-                    <button
-                      onClick={() => reEnrichWithPrompt(rec.id)}
-                      className="rec-action-btn-inline"
-                      disabled={enrichingId === rec.id}
-                      title="Mit KI anreichern"
-                    >
-                      {enrichingId === rec.id ? (
-                        <div className="button-spinner-inline"></div>
-                      ) : (
-                        <img src="/.png" alt="AI" />
-                      )}
-                    </button>
-                  )}
-
-                  {rec.enrichment && (
-                    <>
+                    {rec.transcription && (
                       <button
                         onClick={() => {
-                          if (activeResult?.text === rec.enrichment && activeResult?.title === "Transkription + KI") {
+                          if (activeResult?.text === rec.transcription && activeResult?.title === "Transkription") {
                             setActiveResult(null);
                           } else {
-                            setActiveResult({ text: rec.enrichment!, title: "Transkription + KI" });
+                            setActiveResult({ text: rec.transcription!, title: "Transkription" });
                           }
                         }}
                         className="rec-action-btn-inline"
-                        title="Transkription AI"
+                        title="Transkription anzeigen"
                       >
-                        <img src="/transkription-ai.png" alt="AI" />
+                        <img src="/transkription.png" alt="A" />
                       </button>
-                      
-                      {/* Prompt Selector Dropdown */}
-                      {isTauri() && promptTemplates.length > 0 && (
-                        <select 
-                          value={selectedPrompt} 
-                          onChange={(e) => setSelectedPrompt(e.target.value)}
-                          className="rec-prompt-dropdown"
-                          title="Prompt-Template auswählen"
-                        >
-                          {promptTemplates.map((template) => (
-                            <option key={template} value={template}>{template}</option>
-                          ))}
-                        </select>
-                      )}
-                      
+                    )}
+
+                    {rec.transcription && !rec.enrichment && isModelAvailable && (
                       <button
                         onClick={() => reEnrichWithPrompt(rec.id)}
-                        className="rec-refresh-btn-inline"
+                        className="rec-action-btn-inline"
                         disabled={enrichingId === rec.id}
-                        title="Neu anreichern mit aktuellem Prompt"
+                        title="Mit KI anreichern"
                       >
                         {enrichingId === rec.id ? (
                           <div className="button-spinner-inline"></div>
                         ) : (
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
-                          </svg>
+                          <img src="/.png" alt="AI" />
                         )}
                       </button>
-                    </>
-                  )}
+                    )}
 
-                  <button onClick={() => deleteRecording(rec.id)} className="rec-delete-btn" title="Löschen">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="3 6 5 6 21 6"></polyline>
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                      <line x1="10" y1="11" x2="10" y2="17"></line>
-                      <line x1="14" y1="11" x2="14" y2="17"></line>
-                    </svg>
-                  </button>
+                    {rec.enrichment && (
+                      <>
+                        <button
+                          onClick={() => {
+                            if (activeResult?.text === rec.enrichment && activeResult?.title === "Transkription + KI") {
+                              setActiveResult(null);
+                            } else {
+                              setActiveResult({ text: rec.enrichment!, title: "Transkription + KI" });
+                            }
+                          }}
+                          className="rec-action-btn-inline"
+                          title="Transkription AI"
+                        >
+                          <img src="/transkription-ai.png" alt="AI" />
+                        </button>
+                        
+                        {/* Prompt Selector Dropdown */}
+                        {isTauri() && promptTemplates.length > 0 && (
+                          <select 
+                            value={selectedPrompt} 
+                            onChange={(e) => setSelectedPrompt(e.target.value)}
+                            className="rec-prompt-dropdown"
+                            title="Prompt-Template auswählen"
+                          >
+                            {promptTemplates.map((template) => (
+                              <option key={template} value={template}>{template}</option>
+                            ))}
+                          </select>
+                        )}
+                        
+                        <button
+                          onClick={() => reEnrichWithPrompt(rec.id)}
+                          className="rec-refresh-btn-inline"
+                          disabled={enrichingId === rec.id}
+                          title="Neu anreichern mit aktuellem Prompt"
+                        >
+                          {enrichingId === rec.id ? (
+                            <div className="button-spinner-inline"></div>
+                          ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                            </svg>
+                          )}
+                        </button>
+                      </>
+                    )}
+
+                    <button onClick={() => deleteRecording(rec.id)} className="rec-delete-btn" title="Löschen">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        <line x1="10" y1="11" x2="10" y2="17"></line>
+                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                      </svg>
+                    </button>
+                  </div>
                 </div>
                 {playingId === rec.id && (
                   <div className="playback-progress-container">
@@ -864,19 +880,6 @@ export default function HomePage() {
           ))}
 
 
-        </div>
-
-        {/* Bottom Control Bar: Record Button Only */}
-        <div className="controls-bar">
-          <div className="record-section">
-            <button
-              onClick={isRecording ? stopRecording : startRecording}
-              className={`record-toggle ${isRecording ? 'recording' : 'idle'}`}
-              disabled={isModelLoading}
-              title={isRecording ? "Aufnahme stoppen Ctrl+Shift+Space" : "Aufnahme starten Ctrl+Shift+Space"}
-            >
-              <div className="record-indicator"></div>
-            </button>
           </div>
         </div>
       </div>
@@ -950,7 +953,7 @@ export default function HomePage() {
           border-radius: 24px;
           border: 1px solid #2d323b;
           margin-bottom: 20px;
-          margin-left: 68px;
+          margin-left: 0;
           margin-right: auto;
           transition: all 0.4s ease;
           position: relative;
@@ -982,6 +985,15 @@ export default function HomePage() {
           flex: 1;
           min-height: 0;
           padding-bottom: 20px;
+        }
+
+        /* Controls and History - Horizontal Layout */
+        .controls-and-history {
+          display: flex;
+          align-items: flex-start;
+          gap: 20px;
+          flex: 1;
+          min-height: 0;
         }
 
         /* Prompt Selector */
@@ -1059,13 +1071,12 @@ export default function HomePage() {
         .history-stack {
           flex: 1;
           display: flex;
-          flex-direction: column-reverse; /* Newest on bottom */
+          flex-direction: column;
           align-items: flex-start;
-          gap: 0px;
+          gap: 6px;
           overflow-y: auto;
-          padding: 10px 0 10px 0;
-          padding-left: 68px; /* 48px button + 20px gap to align with record button */
-          margin-bottom: 0;
+          padding: 0;
+          margin: 0;
         }
 
         .controls-bar {
@@ -1097,7 +1108,7 @@ export default function HomePage() {
         .rec-card { 
           background: #1a1d23; 
           border: 1px solid #333; 
-          padding: 12px 18px; 
+          padding: 8px 18px; 
           border-radius: 12px; 
           width: 550px; 
           box-shadow: 0 4px 15px rgba(0,0,0,0.4);
@@ -1105,7 +1116,7 @@ export default function HomePage() {
           overflow: hidden;
           display: flex;
           align-items: center;
-          height: 48px;
+          min-height: 40px;
         }
 
         .playback-progress-container {
@@ -1125,6 +1136,7 @@ export default function HomePage() {
         
         .rec-time { font-size: 13px; color: #aaa; font-weight: 500; flex-shrink: 0; }
         .rec-footer { display: flex; align-items: center; gap: 8px; height: 100%; }
+        .rec-footer-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
         .rec-play-btn, .rec-delete-btn { background: none; border: none; color: #aaa; cursor: pointer; font-size: 18px; transition: all 0.2s; width: 26px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .rec-play-btn:hover { color: #4dabf7; transform: scale(1.1); }
         .rec-play-btn.playing { color: #aaa; }
@@ -1233,7 +1245,7 @@ export default function HomePage() {
         /* Record Button */
         .record-section { flex-shrink: 0; }
         .record-toggle { 
-          width: 48px; height: 48px; border-radius: 50%; border: 3px solid #333; 
+          width: 40px; height: 40px; border-radius: 50%; border: 3px solid #333; 
           background: none; cursor: pointer; transition: all 0.3s; 
           display: flex; align-items: center; justify-content: center;
         }
@@ -1241,8 +1253,8 @@ export default function HomePage() {
         .record-toggle:not(:disabled):hover { border-color: #ffffff; transform: scale(1.05); box-shadow: 0 0 15px rgba(255, 255, 255, 0.2); }
         .record-toggle.recording { background: #fa5252; border-color: #fa5252; box-shadow: 0 0 25px rgba(250, 82, 82, 0.5); animation: none; }
         .record-toggle:disabled { opacity: 0.3; cursor: not-allowed; }
-        .record-indicator { width: 20px; height: 20px; background: #fa5252; border-radius: 50%; transition: all 0.3s; }
-        .record-toggle.recording .record-indicator { width: 16px; height: 16px; background: white; border-radius: 4px; }
+        .record-indicator { width: 16px; height: 16px; background: #fa5252; border-radius: 50%; transition: all 0.3s; }
+        .record-toggle.recording .record-indicator { width: 12px; height: 12px; background: white; border-radius: 3px; }
         
         @keyframes pulsateButton { 
           0%, 100% { transform: scale(1); opacity: 1; } 

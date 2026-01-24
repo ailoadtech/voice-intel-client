@@ -20,6 +20,13 @@ jobs:
           node-version: 20
           cache: npm
 
+      - name: Clean previous builds
+        run: |
+          if exist .next rmdir /s /q .next
+          if exist out rmdir /s /q out
+          if exist dist rmdir /s /q dist
+        shell: cmd
+
       - name: Install Node.js dependencies
         run: npm ci
 
@@ -30,6 +37,16 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          cache-on-failure: false
+
+      - name: Clean Cargo build artifacts
+        run: cargo clean
+        working-directory: src-tauri
 
       - name: Build Windows EXE
         run: cargo build --release
