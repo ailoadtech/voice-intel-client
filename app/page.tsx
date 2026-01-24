@@ -522,6 +522,21 @@ export default function HomePage() {
             <div className="download-progress-container">
               <div className="download-progress-bar" style={{ width: `${downloadProgress}%` }}></div>
             </div>
+            
+            {/* Cancel button */}
+            <button 
+              onClick={() => {
+                console.log("Download cancelled by button click");
+                abortDownloadRef.current = true;
+                setIsModelLoading(false);
+                setIsInitializing(false);
+                setDownloadProgress(0);
+                setIsModelAvailable(false);
+              }}
+              className="cancel-download-btn"
+            >
+              Abbrechen
+            </button>
           </div>
         </div>
       )}
@@ -630,7 +645,7 @@ export default function HomePage() {
                       {enrichingId === rec.id ? (
                         <div className="button-spinner-inline"></div>
                       ) : (
-                        <img src="/transkription-ai.png" alt="AI" />
+                        <img src="/.png" alt="AI" />
                       )}
                     </button>
                   )}
@@ -1078,6 +1093,25 @@ export default function HomePage() {
           background: #40c057;
           transition: width 0.3s ease;
           box-shadow: 0 0 8px rgba(64, 192, 87, 0.6);
+        }
+        
+        .cancel-download-btn {
+          margin-top: 20px;
+          background: #2d323b;
+          color: #e0e0e0;
+          border: 1px solid #3d424b;
+          padding: 10px 24px;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .cancel-download-btn:hover {
+          background: #3d424b;
+          border-color: #fa5252;
+          color: #fa5252;
+          transform: scale(1.05);
         }
 
         @keyframes spin {
