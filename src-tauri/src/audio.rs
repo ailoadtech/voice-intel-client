@@ -9,20 +9,26 @@ pub fn get_app_dir() -> PathBuf {
     // In production, use executable directory
     if cfg!(debug_assertions) {
         // Development mode - use current working directory
-        std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+        let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+        println!("Development mode - using working directory: {:?}", cwd);
+        cwd
     } else {
         // Production mode - use executable directory
         if let Ok(exe_path) = std::env::current_exe() {
             if let Some(exe_dir) = exe_path.parent() {
+                println!("Production mode - using executable directory: {:?}", exe_dir);
                 return exe_dir.to_path_buf();
             }
         }
+        println!("Fallback - using current directory");
         PathBuf::from(".")
     }
 }
 
 // Speichert Audiosamples als WAV-Datei mit einem Unix-Zeitstempel im Verzeichnis 'recordings'.
 pub fn save_recording(samples: &[i16]) -> Result<String, Box<dyn std::error::Error>> {
+    println!("save_recording called with {} samples", samples.len());
+    
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)?
         .as_secs()
@@ -31,10 +37,16 @@ pub fn save_recording(samples: &[i16]) -> Result<String, Box<dyn std::error::Err
     let app_dir = get_app_dir();
     let recordings_dir = app_dir.join("recordings");
     
+    println!("App directory: {:?}", app_dir);
+    println!("Recordings directory: {:?}", recordings_dir);
+    
     // Ensure recordings directory exists
     if !recordings_dir.exists() {
+        println!("Recordings directory does not exist, creating...");
         fs::create_dir_all(&recordings_dir)?;
         println!("Created recordings directory at: {:?}", recordings_dir);
+    } else {
+        println!("Recordings directory already exists");
     }
     
     let path = recordings_dir.join(format!("{}.rec", timestamp));
@@ -47,10 +59,23 @@ pub fn save_recording(samples: &[i16]) -> Result<String, Box<dyn std::error::Err
         sample_format: hound::SampleFormat::Int,
     };
     let mut writer = WavWriter::create(&path, spec)?;
+    println!("WavWriter created successfully");
+    
     for &sample in samples {
         writer.write_sample(sample)?;
     }
+    println!("All {} samples written", samples.len());
+    
     writer.finalize()?;
-    println!("Recording saved successfully: {}", timestamp);
+    println!("Recording finalized and saved successfully: {}", timestamp);
+    
+    // Verify file was created
+    if path.exists() {
+        let metadata = std::fs::metadata(&path)?;
+        println!("File verified - size: {} bytes", metadata.len());
+    } else {
+        println!("WARNING: File was not created at {:?}", path);
+    }
+    
     Ok(timestamp)
 }

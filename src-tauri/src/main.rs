@@ -57,6 +57,7 @@ async fn save_and_queue_recording(samples: Vec<i16>) -> Result<String, String> {
         return Err("No audio samples provided".to_string());
     }
     
+    println!("Calling audio::save_recording...");
     match audio::save_recording(&samples) {
         Ok(id) => {
             println!("Recording saved successfully with ID: {}", id);

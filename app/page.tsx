@@ -367,7 +367,11 @@ export default function HomePage() {
         if (isTauri()) {
           try {
             console.log("Attempting to save recording with", samples.length, "samples");
-            const id = await invoke("save_and_queue_recording", { samples: Array.from(samples) }) as string;
+            console.log("Samples array first 10:", Array.from(samples).slice(0, 10));
+            const samplesArray = Array.from(samples);
+            console.log("Converted samples to array, length:", samplesArray.length);
+            
+            const id = await invoke("save_and_queue_recording", { samples: samplesArray }) as string;
             console.log("Recording saved successfully with ID:", id);
             
             audioBlobs.current.set(id, wavBlob); // Store the WAV blob for playback
@@ -449,6 +453,14 @@ export default function HomePage() {
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
+      
+      // Stop all tracks in the stream to release the microphone
+      if (mediaRecorderRef.current.stream) {
+        mediaRecorderRef.current.stream.getTracks().forEach(track => {
+          track.stop();
+        });
+      }
+      
       setIsRecording(false);
       if (timerRef.current) clearInterval(timerRef.current);
     }
@@ -561,6 +573,12 @@ export default function HomePage() {
         audioBlobs.current.set(id, blob);
         
         console.log("Created blob, size:", blob.size, "type:", blob.type);
+        
+        // Verify WAV header
+        if (uint8Array.length >= 4) {
+          const header = String.fromCharCode(uint8Array[0], uint8Array[1], uint8Array[2], uint8Array[3]);
+          console.log("WAV header:", header, "Valid:", header === "RIFF");
+        }
       }
 
       if (blob) {
@@ -587,20 +605,36 @@ export default function HomePage() {
 
         audio.onerror = (e) => {
           console.error("Audio playback error:", e);
+          console.error("Audio error code:", audio.error?.code, "message:", audio.error?.message);
           setPlayingId(null);
           setPlaybackProgress(0);
           URL.revokeObjectURL(url);
+          setErrorMessage(`Wiedergabefehler: ${audio.error?.message || "Unbekanntes Format"}`);
         };
 
-        await audio.play();
-        console.log("Audio playback started");
+        // Add canplay listener to ensure audio is ready
+        audio.oncanplay = () => {
+          console.log("Audio is ready to play, duration:", audio.duration);
+        };
+
+        try {
+          await audio.play();
+          console.log("Audio playback started");
+        } catch (playErr) {
+          console.error("Play error:", playErr);
+          setPlayingId(null);
+          setPlaybackProgress(0);
+          URL.revokeObjectURL(url);
+          setErrorMessage(`Wiedergabefehler: ${(playErr as any).message || "Kann nicht abspielen"}`);
+        }
       } else {
         console.error("Audio data not found for id:", id);
         setErrorMessage("Audio-Datei nicht gefunden");
       }
     } catch (err) {
       console.error("Playback error:", err);
-      setErrorMessage("Fehler bei der Wiedergabe: " + (err as any).toString());
+      const errorMsg = (err as any).message || (err as any).toString();
+      setErrorMessage(`Wiedergabefehler: ${errorMsg}`);
     }
   };
 
@@ -860,7 +894,13 @@ export default function HomePage() {
                 <line x1="12" y1="16" x2="12.01" y2="16"></line>
               </svg>
             </div>
-            <h3 className="error-title">Mikrofon blockiert</h3>
+            <h3 className="error-title">
+              {errorMessage.includes("Mikrofon") ? "Mikrofon blockiert" : 
+               errorMessage.includes("Wiedergabe") ? "Wiedergabefehler" :
+               errorMessage.includes("Speichern") ? "Speicherfehler" :
+               errorMessage.includes("Whisper") ? "Modell-Fehler" :
+               "Fehler"}
+            </h3>
             <p className="error-message">{errorMessage}</p>
             <button onClick={() => setErrorMessage(null)} className="error-close-btn">
               OK
@@ -1057,12 +1097,15 @@ export default function HomePage() {
         .rec-card { 
           background: #1a1d23; 
           border: 1px solid #333; 
-          padding: 6px 18px; 
+          padding: 12px 18px; 
           border-radius: 12px; 
           width: 550px; 
           box-shadow: 0 4px 15px rgba(0,0,0,0.4);
           position: relative;
           overflow: hidden;
+          display: flex;
+          align-items: center;
+          height: 48px;
         }
 
         .playback-progress-container {
@@ -1081,7 +1124,7 @@ export default function HomePage() {
         }
         
         .rec-time { font-size: 13px; color: #aaa; font-weight: 500; flex-shrink: 0; }
-        .rec-footer { display: flex; align-items: center; gap: 8px; }
+        .rec-footer { display: flex; align-items: center; gap: 8px; height: 100%; }
         .rec-play-btn, .rec-delete-btn { background: none; border: none; color: #aaa; cursor: pointer; font-size: 18px; transition: all 0.2s; width: 26px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .rec-play-btn:hover { color: #4dabf7; transform: scale(1.1); }
         .rec-play-btn.playing { color: #aaa; }
