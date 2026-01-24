@@ -345,7 +345,6 @@ fn main() {
                                 });
                             }
                         }
-                        }
                         // Rename .rec file so it's not processed again
                         let processed_path = path.with_extension("processed");
                         let _ = std::fs::rename(path, processed_path);
