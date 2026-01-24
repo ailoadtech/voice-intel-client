@@ -32,16 +32,35 @@ pub fn get_model_path() -> PathBuf {
 pub fn ensure_model() -> Result<(), Box<dyn std::error::Error>> {
     let model_path = get_model_path();
     
-    if !model_path.exists() {
-        if let Some(parent) = model_path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        println!("Downloading Whisper small model to {:?}...", model_path);
-        let resp = reqwest::blocking::get(MODEL_URL)?;
-        let data = resp.bytes()?;
-        fs::write(&model_path, data)?;
-        println!("Model downloaded successfully!");
+    if model_path.exists() {
+        println!("Whisper model already exists at: {:?}", model_path);
+        return Ok(());
     }
+    
+    if let Some(parent) = model_path.parent() {
+        fs::create_dir_all(parent)?;
+        println!("Created models directory at: {:?}", parent);
+    }
+    
+    println!("Downloading Whisper small model from: {}", MODEL_URL);
+    println!("Saving to: {:?}", model_path);
+    
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(300))
+        .build()?;
+    
+    let response = client.get(MODEL_URL).send()?;
+    
+    if !response.status().is_success() {
+        return Err(format!("Download failed with status: {}", response.status()).into());
+    }
+    
+    let bytes = response.bytes()?;
+    println!("Downloaded {} bytes", bytes.len());
+    
+    fs::write(&model_path, bytes)?;
+    println!("Model saved successfully to: {:?}", model_path);
+    
     Ok(())
 }
 

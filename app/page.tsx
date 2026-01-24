@@ -33,6 +33,7 @@ export default function HomePage() {
   const [isModelAvailable, setIsModelAvailable] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
   const [downloadProgress, setDownloadProgress] = useState(0);
+  const abortDownloadRef = useRef(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -143,7 +144,24 @@ export default function HomePage() {
 
     const checkAndDownloadModel = async () => {
       let progressInterval: NodeJS.Timeout | null = null;
-      let aborted = false;
+      abortDownloadRef.current = false;
+      
+      const handleEscape = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          console.log("ESC pressed - aborting download");
+          abortDownloadRef.current = true;
+          e.preventDefault();
+          e.stopPropagation();
+          
+          // Immediately close the dialog
+          if (progressInterval) clearInterval(progressInterval);
+          setIsModelLoading(false);
+          setIsInitializing(false);
+          setDownloadProgress(0);
+          setIsModelAvailable(false);
+          document.removeEventListener('keydown', handleEscape);
+        }
+      };
       
       try {
         setIsModelLoading(true);
@@ -151,39 +169,32 @@ export default function HomePage() {
         setDownloadProgress(0);
         console.log("Checking Whisper model...");
         
-        // Add escape key listener to abort download
-        const handleEscape = (e: KeyboardEvent) => {
-          if (e.key === 'Escape') {
-            console.log("Download aborted by user");
-            aborted = true;
-            if (progressInterval) clearInterval(progressInterval);
-            setIsModelLoading(false);
-            setIsInitializing(false);
-            setDownloadProgress(0);
-            setIsModelAvailable(false);
-            document.removeEventListener('keydown', handleEscape);
-          }
-        };
-        document.addEventListener('keydown', handleEscape);
+        // Add escape key listener with capture phase
+        document.addEventListener('keydown', handleEscape, true);
         
         // Simulate progress during download
         progressInterval = setInterval(() => {
-          if (aborted) {
+          if (abortDownloadRef.current) {
             if (progressInterval) clearInterval(progressInterval);
             return;
           }
           setDownloadProgress(prev => {
-            if (prev >= 95) return prev; // Stop at 95% until download completes
-            return prev + Math.random() * 5; // Increment by random amount
+            if (prev >= 95) return prev;
+            return prev + Math.random() * 5;
           });
         }, 500);
         
-        await invoke("check_model");
+        // Start download in background (non-blocking)
+        const downloadPromise = invoke("check_model");
         
-        // Remove escape listener after download completes
-        document.removeEventListener('keydown', handleEscape);
+        // Wait for either download completion or abort
+        await downloadPromise;
         
-        if (aborted) return;
+        // If aborted, don't continue
+        if (abortDownloadRef.current) {
+          console.log("Download was aborted");
+          return;
+        }
         
         if (progressInterval) clearInterval(progressInterval);
         setDownloadProgress(100);
@@ -193,17 +204,26 @@ export default function HomePage() {
         
         setIsModelAvailable(true);
         console.log("Whisper model is ready");
-      } catch (err) {
+      } catch (err: any) {
         console.error("Failed to load Whisper model:", err);
-        setIsModelAvailable(false);
-        if (!aborted) {
-          setErrorMessage("Fehler beim Laden des Whisper-Modells. Transkription ist nicht verfügbar.");
+        
+        if (abortDownloadRef.current) {
+          console.log("Download was cancelled by user");
+          setIsModelAvailable(false);
+        } else {
+          setIsModelAvailable(false);
+          setErrorMessage("Fehler beim Laden des Whisper-Modells: " + (err.message || "Unbekannter Fehler"));
         }
       } finally {
         if (progressInterval) clearInterval(progressInterval);
-        setIsModelLoading(false);
-        setIsInitializing(false);
-        setDownloadProgress(0);
+        document.removeEventListener('keydown', handleEscape, true);
+        
+        if (!abortDownloadRef.current) {
+          setIsModelLoading(false);
+          setIsInitializing(false);
+          setDownloadProgress(0);
+        }
+        abortDownloadRef.current = false;
       }
     };
 
@@ -462,31 +482,29 @@ export default function HomePage() {
       {isInitializing && (
         <div className="loading-overlay">
           <div className="loading-card">
-            <div className="hourglass-container">
+            <div className="microphone-container">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
                 fill="none"
-                stroke="#ffffff"
-                strokeWidth="1.5"
+                stroke="currentColor"
+                strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="hourglass-icon"
+                className="microphone-icon"
               >
-                <path d="M5 22h14" />
-                <path d="M5 2h14" />
-                <path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22" />
-                <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" />
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                <line x1="12" y1="19" x2="12" y2="22"/>
               </svg>
             </div>
             <div className="loading-text">Whisper-Modell wird geladen...</div>
             <div className="loading-subtext">Dies kann beim ersten Start einige Minuten dauern (~500 MB)</div>
             
-            {/* Progress bar */}
+            {/* Progress bar - simple line without percentage */}
             <div className="download-progress-container">
               <div className="download-progress-bar" style={{ width: `${downloadProgress}%` }}></div>
             </div>
-            <div className="download-progress-text">{downloadProgress}%</div>
           </div>
         </div>
       )}
@@ -1005,20 +1023,25 @@ export default function HomePage() {
           background: #1a1d23; border: 1px solid #333; padding: 50px;
           border-radius: 32px; text-align: center; box-shadow: 0 30px 60px rgba(0,0,0,0.5);
         }
-        .hourglass-container {
-          width: 70px; height: 70px;
+        .microphone-container {
+          width: 80px; height: 80px;
           margin: 0 auto 30px; display: flex; align-items: center; justify-content: center;
         }
-        .hourglass-icon {
-          width: 100%; height: 100%; object-fit: contain;
-          animation: rotateHourglass 2s infinite cubic-bezier(0.77, 0, 0.175, 1);
+        .microphone-icon {
+          width: 100%; height: 100%;
+          color: #4dabf7;
+          filter: drop-shadow(0 0 20px rgba(77, 171, 247, 0.5));
+          animation: pulse 2s ease-in-out infinite;
         }
-        @keyframes rotateHourglass {
-          0% { transform: rotate(0deg); }
-          45% { transform: rotate(180deg); }
-          50% { transform: rotate(180deg); }
-          95% { transform: rotate(360deg); }
-          100% { transform: rotate(360deg); }
+        @keyframes pulse {
+          0%, 100% { 
+            transform: scale(1);
+            opacity: 1;
+          }
+          50% { 
+            transform: scale(1.05);
+            opacity: 0.8;
+          }
         }
         .loading-text { font-size: 22px; font-weight: 700; color: #4dabf7; margin-bottom: 12px; }
         .loading-subtext { font-size: 14px; color: #555; margin-bottom: 25px; }
@@ -1026,24 +1049,18 @@ export default function HomePage() {
         .download-progress-container {
           width: 100%;
           max-width: 400px;
-          height: 6px;
+          height: 4px;
           background: #1a1d23;
-          border-radius: 3px;
+          border-radius: 2px;
           overflow: hidden;
-          margin: 0 auto 12px;
-          border: 1px solid #333;
+          margin: 0 auto;
+          border: 1px solid #2a2d33;
         }
         .download-progress-bar {
           height: 100%;
-          background: linear-gradient(90deg, #40c057 0%, #51cf66 100%);
+          background: #40c057;
           transition: width 0.3s ease;
-          box-shadow: 0 0 10px rgba(64, 192, 87, 0.5);
-        }
-        .download-progress-text {
-          font-size: 16px;
-          color: #40c057;
-          font-weight: 600;
-          text-align: center;
+          box-shadow: 0 0 8px rgba(64, 192, 87, 0.6);
         }
 
         @keyframes spin {

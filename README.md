@@ -175,7 +175,7 @@ Die App funktioniert auch im Browser mit eingeschränkten Features:
 
 ```
 voice-intel-client/
-├── app/                    # Next.js Frontend
+├── app/                   # Next.js Frontend
 ├── src-tauri/             # Rust Backend
 │   ├── src/               # Rust Quellcode
 │   ├── icons/             # App-Icons
@@ -190,7 +190,11 @@ voice-intel-client/
 
 - `build.sh`: Linux/Mac Build-Skript
 - `src-tauri/build_windows.sh`: Windows Build-Skript
-- github Actions: "Build Windows EXE"
+- GitHub Actions: [Build Windows EXE](https://github.com/ailoadtech/voice-intel-client/blob/main/.github/workflows/build.yml)
+
+### Known Issues
+
+- Icon replacement for voice-intel-app.exe 
 
 ## Credits
 
