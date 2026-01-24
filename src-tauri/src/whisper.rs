@@ -2,7 +2,6 @@
 use std::fs;
 use std::path::PathBuf;
 use whisper_rs::{WhisperContext, WhisperContextParameters, FullParams, SamplingStrategy};
-use regex::Regex;
 
 const MODEL_URL: &str = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin";
 
@@ -76,20 +75,36 @@ fn remove_hallucinations(text: &str) -> String {
     let mut cleaned = text.to_string();
     
     // Entferne Klammer-Inhalte wie "(Sie lacht.)", "(Musik)", etc.
-    let re_parentheses = Regex::new(r"\([^)]*\)").unwrap();
-    cleaned = re_parentheses.replace_all(&cleaned, "").to_string();
+    while let Some(start) = cleaned.find('(') {
+        if let Some(end) = cleaned[start..].find(')') {
+            cleaned.replace_range(start..start + end + 1, "");
+        } else {
+            break;
+        }
+    }
     
     // Entferne eckige Klammern wie "[Musik]", "[Applaus]", etc.
-    let re_brackets = Regex::new(r"\[[^\]]*\]").unwrap();
-    cleaned = re_brackets.replace_all(&cleaned, "").to_string();
+    while let Some(start) = cleaned.find('[') {
+        if let Some(end) = cleaned[start..].find(']') {
+            cleaned.replace_range(start..start + end + 1, "");
+        } else {
+            break;
+        }
+    }
     
     // Entferne Sternchen-Inhalte wie "* Musik *"
-    let re_asterisks = Regex::new(r"\*[^*]*\*").unwrap();
-    cleaned = re_asterisks.replace_all(&cleaned, "").to_string();
+    while let Some(start) = cleaned.find('*') {
+        if let Some(end) = cleaned[start + 1..].find('*') {
+            cleaned.replace_range(start..start + end + 2, "");
+        } else {
+            break;
+        }
+    }
     
     // Entferne mehrfache Leerzeichen
-    let re_spaces = Regex::new(r"\s+").unwrap();
-    cleaned = re_spaces.replace_all(&cleaned, " ").to_string();
+    while cleaned.contains("  ") {
+        cleaned = cleaned.replace("  ", " ");
+    }
     
     cleaned.trim().to_string()
 }
@@ -180,10 +195,10 @@ fn inner_transcribe(timestamp: &str) -> Result<String, String> {
     for i in 0..num_segments {
         if let Some(segment) = state.get_segment(i) {
             if let Ok(segment_text) = segment.to_str() {
-                let cleaned = segment_text.trim();
+                let cleaned = remove_hallucinations(segment_text);
                 // Nur gültige Segmente hinzufügen
-                if is_valid_transcription(cleaned) {
-                    text.push_str(cleaned);
+                if is_valid_transcription(&cleaned) {
+                    text.push_str(&cleaned);
                     text.push(' ');
                 }
             }
