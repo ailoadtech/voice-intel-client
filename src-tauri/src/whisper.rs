@@ -1,7 +1,6 @@
 // src-tauri/src/whisper.rs
 use std::fs;
 use std::path::PathBuf;
-use std::io::Write;
 use whisper_rs::{WhisperContext, WhisperContextParameters, FullParams, SamplingStrategy};
 
 const MODEL_URL: &str = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin";
@@ -39,8 +38,7 @@ pub fn ensure_model() -> Result<(), String> {
         .open(&log_path)
         .ok();
     
-    let log = |msg: &str| {
-        println!("{}", msg);
+    let mut log = |msg: &str| {
         if let Some(ref mut file) = log_file {
             use std::io::Write;
             let _ = writeln!(file, "[{}] {}", chrono::Local::now().format("%Y-%m-%d %H:%M:%S"), msg);
@@ -76,7 +74,7 @@ pub fn ensure_model() -> Result<(), String> {
     
     log("Building HTTP client...");
     let client = reqwest::blocking::Client::builder()
-        .timeout(std::time::Duration::from_secs(300))
+        .timeout(std::time::Duration::from_secs(600))
         .build()
         .map_err(|e| {
             let err_msg = format!("Failed to build HTTP client: {}", e);
