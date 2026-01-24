@@ -2,6 +2,7 @@
 use std::fs;
 use std::path::PathBuf;
 use whisper_rs::{WhisperContext, WhisperContextParameters, FullParams, SamplingStrategy};
+use regex::Regex;
 
 const MODEL_URL: &str = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin";
 
@@ -29,7 +30,7 @@ pub fn get_model_path() -> PathBuf {
 }
 
 // Stellt sicher, dass das Whisper-Modell heruntergeladen und im lokalen Verzeichnis verfügbar ist.
-pub fn ensure_model() -> Result<(), Box<dyn std::error::Error>> {
+pub fn ensure_model() -> Result<(), String> {
     let model_path = get_model_path();
     
     if model_path.exists() {
@@ -38,7 +39,7 @@ pub fn ensure_model() -> Result<(), Box<dyn std::error::Error>> {
     }
     
     if let Some(parent) = model_path.parent() {
-        fs::create_dir_all(parent)?;
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
         println!("Created models directory at: {:?}", parent);
     }
     
@@ -47,18 +48,19 @@ pub fn ensure_model() -> Result<(), Box<dyn std::error::Error>> {
     
     let client = reqwest::blocking::Client::builder()
         .timeout(std::time::Duration::from_secs(300))
-        .build()?;
+        .build()
+        .map_err(|e| e.to_string())?;
     
-    let response = client.get(MODEL_URL).send()?;
+    let response = client.get(MODEL_URL).send().map_err(|e| e.to_string())?;
     
     if !response.status().is_success() {
-        return Err(format!("Download failed with status: {}", response.status()).into());
+        return Err(format!("Download failed with status: {}", response.status()));
     }
     
-    let bytes = response.bytes()?;
+    let bytes = response.bytes().map_err(|e| e.to_string())?;
     println!("Downloaded {} bytes", bytes.len());
     
-    fs::write(&model_path, bytes)?;
+    fs::write(&model_path, bytes).map_err(|e| e.to_string())?;
     println!("Model saved successfully to: {:?}", model_path);
     
     Ok(())
@@ -74,19 +76,19 @@ fn remove_hallucinations(text: &str) -> String {
     let mut cleaned = text.to_string();
     
     // Entferne Klammer-Inhalte wie "(Sie lacht.)", "(Musik)", etc.
-    let re_parentheses = regex::Regex::new(r"\([^)]*\)").unwrap();
+    let re_parentheses = Regex::new(r"\([^)]*\)").unwrap();
     cleaned = re_parentheses.replace_all(&cleaned, "").to_string();
     
     // Entferne eckige Klammern wie "[Musik]", "[Applaus]", etc.
-    let re_brackets = regex::Regex::new(r"\[[^\]]*\]").unwrap();
+    let re_brackets = Regex::new(r"\[[^\]]*\]").unwrap();
     cleaned = re_brackets.replace_all(&cleaned, "").to_string();
     
     // Entferne Sternchen-Inhalte wie "* Musik *"
-    let re_asterisks = regex::Regex::new(r"\*[^*]*\*").unwrap();
+    let re_asterisks = Regex::new(r"\*[^*]*\*").unwrap();
     cleaned = re_asterisks.replace_all(&cleaned, "").to_string();
     
     // Entferne mehrfache Leerzeichen
-    let re_spaces = regex::Regex::new(r"\s+").unwrap();
+    let re_spaces = Regex::new(r"\s+").unwrap();
     cleaned = re_spaces.replace_all(&cleaned, " ").to_string();
     
     cleaned.trim().to_string()
@@ -121,7 +123,7 @@ fn is_valid_transcription(text: &str) -> bool {
     
     // Prüfe auf Halluzinationen
     for hallucination in &hallucinations {
-        if text_lower == hallucination || text_lower.contains(&format!("* {} *", hallucination)) {
+        if text_lower == *hallucination || text_lower.contains(&format!("* {} *", hallucination)) {
             return false;
         }
     }
@@ -144,7 +146,7 @@ fn is_valid_transcription(text: &str) -> bool {
 }
 
 // Interne Logik zur Verarbeitung der Audiodatei mit dem Whisper-Modell.
-fn inner_transcribe(timestamp: &str) -> Result<String, Box<dyn std::error::Error>> {
+fn inner_transcribe(timestamp: &str) -> Result<String, String> {
     ensure_model()?;
     let app_dir = get_app_dir();
     let rec_path = app_dir.join("recordings").join(format!("{}.rec", timestamp));
@@ -152,15 +154,17 @@ fn inner_transcribe(timestamp: &str) -> Result<String, Box<dyn std::error::Error
 
     let model_path = get_model_path();
     let params = WhisperContextParameters::default();
-    let ctx = WhisperContext::new_with_params(model_path.to_str().unwrap(), params)?;
-    let mut state = ctx.create_state()?;
+    let ctx = WhisperContext::new_with_params(model_path.to_str().unwrap(), params)
+        .map_err(|e| e.to_string())?;
+    let mut state = ctx.create_state().map_err(|e| e.to_string())?;
 
-    let mut reader = hound::WavReader::open(&rec_path)?;
+    let mut reader = hound::WavReader::open(&rec_path).map_err(|e| e.to_string())?;
     let spec = reader.spec();
     if spec.sample_rate != 16_000 || spec.channels != 1 {
-        return Err("Audio must be 16kHz mono".into());
+        return Err("Audio must be 16kHz mono".to_string());
     }
-    let samples_i16: Vec<i16> = reader.samples().collect::<Result<_, _>>()?;
+    let samples_i16: Vec<i16> = reader.samples().collect::<Result<_, _>>()
+        .map_err(|e| e.to_string())?;
     let samples_f32: Vec<f32> = samples_i16.iter().map(|s| *s as f32 / 32768.0).collect();
 
     let strategy = SamplingStrategy::Greedy { best_of: 1 };
@@ -169,7 +173,7 @@ fn inner_transcribe(timestamp: &str) -> Result<String, Box<dyn std::error::Error
     params.set_print_progress(false);
     params.set_print_realtime(false);
 
-    state.full(params, &samples_f32)?;
+    state.full(params, &samples_f32).map_err(|e| e.to_string())?;
 
     let mut text = String::new();
     let num_segments = state.full_n_segments();
@@ -189,9 +193,9 @@ fn inner_transcribe(timestamp: &str) -> Result<String, Box<dyn std::error::Error
     
     // Wenn nach dem Filtern kein Text übrig ist, gebe einen Fehler zurück
     if transcript.is_empty() || !is_valid_transcription(&transcript) {
-        return Err("Keine gültige Transkription erkannt (möglicherweise nur Hintergrundgeräusche)".into());
+        return Err("Keine gültige Transkription erkannt (möglicherweise nur Hintergrundgeräusche)".to_string());
     }
 
-    fs::write(&out_path, &transcript)?;
+    fs::write(&out_path, &transcript).map_err(|e| e.to_string())?;
     Ok(transcript)
 }

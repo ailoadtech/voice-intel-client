@@ -195,6 +195,27 @@ voice-intel-client/
 ### Known Issues
 
 - Icon replacement for voice-intel-app.exe 
+- Many
+
+### About
+
+Ich habe eine Voice Recording Applikation für Windows gebaut.
+Es nimmt die Eingaben über das Mikrofon auf und erstellt mit Hilfe eines lokalen Whisper
+Modell eine Transkription. Weiterhin gibt es eine zweite Transkription die mit Hilfe eines
+LLM von meinem Olama Server angereichert wird. Man kann die Prompts konfigurieren 
+und in der Oberfläche auswählen.
+
+Für die Architektur habe ich Qwen3-Max Thinking benutzt das auch den ersten Code erstellt hat.
+Dann viele Änderungen mit Hilfe von Antigravity durchgeführt und danach dann Kiro (Claude) für das Bugfixing benutzt.
+Leider ist das aber nicht so erfolgreich wie gedacht.
+
+Die größten Probleme hat mir die Umgebung gemacht. Ich habe zuerst alles auf meiner AWS EC2
+mit einem Dockerfile aufgebaut, was nicht die richtige Entscheidung war.
+Dann habe ich alles auf meinem Windows neu aufgebaut, um zum Kompilieren.
+Aber auf Grund von verschiedenen Visual Studios und Code und Windows Dependencies hat das nicht funktioniert.
+Letzter Versuch war dann Github Action zu benutzen und nach einigen Iterationen macht es nun einen Build der 13 Minuten dauert.
+
+Die Aufgabe ist meine erste Application rein mit KI und habe ich habe sehr viel dabei gelernt.
 
 ## Credits
 

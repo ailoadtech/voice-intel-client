@@ -116,7 +116,7 @@ async fn check_model() -> Result<bool, String> {
         }
         Ok(Err(e)) => {
             eprintln!("Model check/download failed: {}", e);
-            Err(e.to_string())
+            Err(e)
         }
         Err(e) => {
             eprintln!("Task join error: {}", e);
