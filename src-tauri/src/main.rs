@@ -5,6 +5,7 @@ mod audio;
 mod whisper;
 mod llm;
 mod config;
+mod logger;
 
 use serde::Serialize;
 use tauri::{Manager, async_runtime, Emitter};
@@ -47,20 +48,21 @@ struct Recording {
 // Speichert Audiodaten in eine Datei und reiht sie in die Warteschlange ein.
 #[tauri::command]
 async fn save_and_queue_recording(samples: Vec<i16>) -> Result<String, String> {
-    println!("save_and_queue_recording called with {} samples", samples.len());
+    logger::Logger::log(&format!("save_and_queue_recording called with {} samples", samples.len()));
     
     if samples.is_empty() {
-        println!("Warning: No samples provided");
+        logger::Logger::log_error("save_and_queue_recording", "No samples provided");
         return Err("No audio samples provided".to_string());
     }
     
-    println!("Calling audio::save_recording...");
+    logger::Logger::log("Calling audio::save_recording...");
     match audio::save_recording(&samples) {
         Ok(id) => {
-            println!("Recording saved successfully with ID: {}", id);
+            logger::Logger::log(&format!("Recording saved successfully with ID: {}", id));
             Ok(id)
         }
         Err(e) => {
+            logger::Logger::log_error("save_and_queue_recording", &e.to_string());
             eprintln!("Failed to save recording: {}", e);
             Err(e.to_string())
         }
@@ -99,26 +101,27 @@ async fn delete_recording(id: String) -> Result<(), String> {
 
 #[tauri::command]
 async fn check_model() -> Result<bool, String> {
-    println!("check_model command called");
+    logger::Logger::log("check_model command called");
     
     // Run blocking operation in a blocking thread
     let result = tokio::task::spawn_blocking(|| {
-        println!("Starting model check/download...");
+        logger::Logger::log("Starting model check/download in blocking thread");
         whisper::ensure_model()
     }).await;
     
     match result {
         Ok(Ok(())) => {
-            println!("Model check/download completed successfully");
+            logger::Logger::log("Model check/download completed successfully");
             Ok(true)
         }
         Ok(Err(e)) => {
-            eprintln!("Model check/download failed: {}", e);
+            logger::Logger::log_error("check_model", &e);
             Err(e)
         }
         Err(e) => {
-            eprintln!("Task join error: {}", e);
-            Err(format!("Task error: {}", e))
+            let err_msg = format!("Task error: {}", e);
+            logger::Logger::log_error("check_model task join", &err_msg);
+            Err(err_msg)
         }
     }
 }
@@ -224,6 +227,10 @@ fn get_audio_duration(path: &Path) -> Result<i32, Box<dyn std::error::Error>> {
 
 // Einstiegspunkt der Anwendung: Initialisiert Plugins, Shortcuts und den Hintergrund-Worker.
 fn main() {
+    // Initialize logger first
+    logger::Logger::init();
+    logger::Logger::log("Initializing Tauri application");
+    
     let ctrl_shift_space = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::Space);
     let ctrl_shift_space_clone = ctrl_shift_space.clone();
 
@@ -239,37 +246,49 @@ fn main() {
             })
             .build())
         .setup(move |app| {
+            logger::Logger::log("Running setup function");
+            
             // Create necessary directories at startup
             let app_dir = get_app_dir();
+            logger::Logger::log(&format!("App directory: {:?}", app_dir));
+            
             let models_dir = app_dir.join("models");
             let recordings_dir = app_dir.join("recordings");
             
             // Create models directory
             if !models_dir.exists() {
+                logger::Logger::log(&format!("Creating models directory: {:?}", models_dir));
                 if let Err(e) = std::fs::create_dir_all(&models_dir) {
-                    eprintln!("Failed to create models directory: {}", e);
+                    let err_msg = format!("Failed to create models directory: {}", e);
+                    logger::Logger::log_error("setup", &err_msg);
+                    eprintln!("{}", err_msg);
                 } else {
-                    println!("Created models directory at: {:?}", models_dir);
+                    logger::Logger::log(&format!("Created models directory at: {:?}", models_dir));
                 }
             } else {
-                println!("Models directory already exists at: {:?}", models_dir);
+                logger::Logger::log(&format!("Models directory already exists at: {:?}", models_dir));
             }
             
             // Create recordings directory
             if !recordings_dir.exists() {
+                logger::Logger::log(&format!("Creating recordings directory: {:?}", recordings_dir));
                 if let Err(e) = std::fs::create_dir_all(&recordings_dir) {
-                    eprintln!("Failed to create recordings directory: {}", e);
+                    let err_msg = format!("Failed to create recordings directory: {}", e);
+                    logger::Logger::log_error("setup", &err_msg);
+                    eprintln!("{}", err_msg);
                 } else {
-                    println!("Created recordings directory at: {:?}", recordings_dir);
+                    logger::Logger::log(&format!("Created recordings directory at: {:?}", recordings_dir));
                 }
             } else {
-                println!("Recordings directory already exists at: {:?}", recordings_dir);
+                logger::Logger::log(&format!("Recordings directory already exists at: {:?}", recordings_dir));
             }
             
+            logger::Logger::log("Registering global shortcut");
             app.global_shortcut().register(ctrl_shift_space)?;
 
             let app_handle = app.handle().clone();
 
+            logger::Logger::log("Spawning background worker");
             // Spawn background worker
             async_runtime::spawn(async move {
                 loop {
@@ -309,10 +328,15 @@ fn main() {
                                             id: stem.to_string(),
                                             text: enriched,
                                         });
+                                    } else {
+                                        logger::Logger::log_error(&format!("Enrichment for {}", stem), "Failed to enrich transcript");
                                     }
+                                } else {
+                                    logger::Logger::log_error(&format!("Config load for {}", stem), "Failed to load config");
                                 }
                             }
                             Err(e) => {
+                                logger::Logger::log_error(&format!("Whisper for {}", stem), &e);
                                 eprintln!("Whisper error for {}: {}", stem, e);
                                 // Emit error event so frontend knows transcription failed
                                 let _ = app_handle.emit("transcription_failed", ProcessPayload {
@@ -320,6 +344,7 @@ fn main() {
                                     text: format!("Transkription fehlgeschlagen: {}", e),
                                 });
                             }
+                        }
                         }
                         // Rename .rec file so it's not processed again
                         let processed_path = path.with_extension("processed");

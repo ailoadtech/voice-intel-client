@@ -720,20 +720,8 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* History Stack and Record Button - Horizontal Layout */}
+        {/* History Stack and Record Button - Bottom Layout */}
         <div className="controls-and-history">
-          {/* Record Button */}
-          <div className="record-section">
-            <button
-              onClick={isRecording ? stopRecording : startRecording}
-              className={`record-toggle ${isRecording ? 'recording' : 'idle'}`}
-              disabled={isModelLoading}
-              title={isRecording ? "Aufnahme stoppen Ctrl+Shift+Space" : "Aufnahme starten Ctrl+Shift+Space"}
-            >
-              <div className="record-indicator"></div>
-            </button>
-          </div>
-
           {/* History Stack - ALL recordings including current/newest */}
           <div className="history-stack custom-scrollbar">
             {/* Show current recording if recording */}
@@ -881,6 +869,18 @@ export default function HomePage() {
 
 
           </div>
+
+          {/* Record Button - Bottom Left */}
+          <div className="record-section">
+            <button
+              onClick={isRecording ? stopRecording : startRecording}
+              className={`record-toggle ${isRecording ? 'recording' : 'idle'}`}
+              disabled={isModelLoading}
+              title={isRecording ? "Aufnahme stoppen Ctrl+Shift+Space" : "Aufnahme starten Ctrl+Shift+Space"}
+            >
+              <div className="record-indicator"></div>
+            </button>
+          </div>
         </div>
       </div>
         </>
@@ -987,13 +987,15 @@ export default function HomePage() {
           padding-bottom: 20px;
         }
 
-        /* Controls and History - Horizontal Layout */
+        /* Controls and History - Bottom Layout */
         .controls-and-history {
           display: flex;
+          flex-direction: column;
           align-items: flex-start;
           gap: 20px;
           flex: 1;
           min-height: 0;
+          position: relative;
         }
 
         /* Prompt Selector */
@@ -1071,12 +1073,14 @@ export default function HomePage() {
         .history-stack {
           flex: 1;
           display: flex;
-          flex-direction: column;
+          flex-direction: row;
           align-items: flex-start;
           gap: 6px;
-          overflow-y: auto;
+          overflow-x: auto;
+          overflow-y: hidden;
           padding: 0;
           margin: 0;
+          margin-left: 60px; /* Space for record button */
         }
 
         .controls-bar {
@@ -1243,7 +1247,12 @@ export default function HomePage() {
         }
         
         /* Record Button */
-        .record-section { flex-shrink: 0; }
+        .record-section { 
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          flex-shrink: 0; 
+        }
         .record-toggle { 
           width: 40px; height: 40px; border-radius: 50%; border: 3px solid #333; 
           background: none; cursor: pointer; transition: all 0.3s; 
