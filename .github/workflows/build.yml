@@ -52,9 +52,16 @@ jobs:
         run: cargo build --release
         working-directory: src-tauri
 
+      - name: Clean release folder
+        run: |
+          if exist release rmdir /s /q release
+        shell: cmd
+
       - name: Create portable folder
         run: |
           mkdir release
+          mkdir release\models
+          mkdir release\recordings
           copy src-tauri\target\release\voice-intel-app.exe release\
           echo { > release\config.json
           echo   "llm": { >> release\config.json

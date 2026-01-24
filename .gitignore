@@ -1,3 +1,7 @@
 ggml-small.bin
 build.sh
 node_modules
+release/
+dist/
+out/
+.next/
