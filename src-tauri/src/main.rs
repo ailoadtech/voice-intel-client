@@ -191,12 +191,13 @@ fn get_audio_duration(path: &Path) -> Result<i32, Box<dyn std::error::Error>> {
 // Einstiegspunkt der Anwendung: Initialisiert Plugins, Shortcuts und den Hintergrund-Worker.
 fn main() {
     let ctrl_shift_space = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::Space);
+    let ctrl_shift_space_clone = ctrl_shift_space.clone();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new()
             .with_handler(move |app, shortcut, event| {
-                if shortcut == &ctrl_shift_space && event.state() == ShortcutState::Pressed {
+                if shortcut == &ctrl_shift_space_clone && event.state() == ShortcutState::Pressed {
                     if let Some(window) = app.get_webview_window("main") {
                         let _ = window.emit("hotkey-triggered", ());
                     }
@@ -204,6 +205,33 @@ fn main() {
             })
             .build())
         .setup(move |app| {
+            // Create necessary directories at startup
+            let app_dir = get_app_dir();
+            let models_dir = app_dir.join("models");
+            let recordings_dir = app_dir.join("recordings");
+            
+            // Create models directory
+            if !models_dir.exists() {
+                if let Err(e) = std::fs::create_dir_all(&models_dir) {
+                    eprintln!("Failed to create models directory: {}", e);
+                } else {
+                    println!("Created models directory at: {:?}", models_dir);
+                }
+            } else {
+                println!("Models directory already exists at: {:?}", models_dir);
+            }
+            
+            // Create recordings directory
+            if !recordings_dir.exists() {
+                if let Err(e) = std::fs::create_dir_all(&recordings_dir) {
+                    eprintln!("Failed to create recordings directory: {}", e);
+                } else {
+                    println!("Created recordings directory at: {:?}", recordings_dir);
+                }
+            } else {
+                println!("Recordings directory already exists at: {:?}", recordings_dir);
+            }
+            
             app.global_shortcut().register(ctrl_shift_space)?;
 
             let app_handle = app.handle().clone();
@@ -250,7 +278,14 @@ fn main() {
                                     }
                                 }
                             }
-                            Err(e) => eprintln!("Whisper error: {}", e),
+                            Err(e) => {
+                                eprintln!("Whisper error for {}: {}", stem, e);
+                                // Emit error event so frontend knows transcription failed
+                                let _ = app_handle.emit("transcription_failed", ProcessPayload {
+                                    id: stem.to_string(),
+                                    text: format!("Transkription fehlgeschlagen: {}", e),
+                                });
+                            }
                         }
                         // Rename .rec file so it's not processed again
                         let processed_path = path.with_extension("processed");

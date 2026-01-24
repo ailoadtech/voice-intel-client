@@ -7,6 +7,47 @@ import { invoke } from "@tauri-apps/api/core";
 // Utility: Check if running inside Tauri
 const isTauri = () => typeof window !== "undefined" && (window as any).__TAURI__;
 
+// Utility: Create a proper WAV blob from Int16 samples
+const createWavBlob = (samples: Int16Array, sampleRate: number): Blob => {
+  const numChannels = 1;
+  const bitsPerSample = 16;
+  const bytesPerSample = bitsPerSample / 8;
+  const blockAlign = numChannels * bytesPerSample;
+  const byteRate = sampleRate * blockAlign;
+  const dataSize = samples.length * bytesPerSample;
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+
+  // WAV Header
+  // "RIFF" chunk descriptor
+  view.setUint32(0, 0x52494646, false); // "RIFF"
+  view.setUint32(4, 36 + dataSize, true); // File size - 8
+  view.setUint32(8, 0x57415645, false); // "WAVE"
+
+  // "fmt " sub-chunk
+  view.setUint32(12, 0x666d7420, false); // "fmt "
+  view.setUint32(16, 16, true); // Subchunk1Size (16 for PCM)
+  view.setUint16(20, 1, true); // AudioFormat (1 for PCM)
+  view.setUint16(22, numChannels, true); // NumChannels
+  view.setUint32(24, sampleRate, true); // SampleRate
+  view.setUint32(28, byteRate, true); // ByteRate
+  view.setUint16(32, blockAlign, true); // BlockAlign
+  view.setUint16(34, bitsPerSample, true); // BitsPerSample
+
+  // "data" sub-chunk
+  view.setUint32(36, 0x64617461, false); // "data"
+  view.setUint32(40, dataSize, true); // Subchunk2Size
+
+  // Write audio samples
+  let offset = 44;
+  for (let i = 0; i < samples.length; i++) {
+    view.setInt16(offset, samples[i], true);
+    offset += 2;
+  }
+
+  return new Blob([buffer], { type: "audio/wav" });
+};
+
 interface Recording {
   id: string;
   date: string;
@@ -109,9 +150,24 @@ export default function HomePage() {
       }
     );
 
+    const unlistenFailed = (window as any).__TAURI__.event.listen(
+      "transcription_failed",
+      (event: any) => {
+        const { id, text } = event.payload;
+        console.log("Transcription failed for", id, ":", text);
+        // Mark recording as completed but without transcription
+        // This will hide the transcription buttons
+        setRecordings(prev => prev.map(r =>
+          r.id === id ? { ...r, status: "idle" } : r
+        ));
+        setStatus("Bereit");
+      }
+    );
+
     return () => {
       unlistenTrans.then((f: any) => f());
       unlistenEnriched.then((f: any) => f());
+      unlistenFailed.then((f: any) => f());
     };
   }, []);
 
@@ -264,7 +320,7 @@ export default function HomePage() {
 
       mediaRecorderRef.current.onstop = async () => {
         const duration = Math.round((Date.now() - startTime) / 1000);
-        const blob = new Blob(audioChunks, { type: "audio/wav" });
+        const blob = new Blob(audioChunks, { type: audioChunks[0]?.type || "audio/webm" });
         const arrayBuffer = await blob.arrayBuffer();
 
         const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
@@ -277,6 +333,9 @@ export default function HomePage() {
           samples[i] = Math.max(-32768, Math.min(32767, channelData[i] * 32767));
         }
 
+        // Create a proper WAV blob for playback
+        const wavBlob = createWavBlob(samples, 16000);
+
         const now = new Date();
         const dateStr = now.toLocaleDateString('de-DE').replace(/\//g, '.');
         const timeStr = now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + ' h';
@@ -284,7 +343,7 @@ export default function HomePage() {
         if (isTauri()) {
           try {
             const id = await invoke("save_and_queue_recording", { samples: Array.from(samples) }) as string;
-            audioBlobs.current.set(id, blob); // Store the blob for playback
+            audioBlobs.current.set(id, wavBlob); // Store the WAV blob for playback
             const newRec: Recording = {
               id,
               date: dateStr,
@@ -308,7 +367,7 @@ export default function HomePage() {
         } else {
           // Browser Mode: Use Worker
           const id = Date.now().toString();
-          audioBlobs.current.set(id, blob);
+          audioBlobs.current.set(id, wavBlob);
 
           const newRec: Recording = {
             id,
@@ -371,16 +430,32 @@ export default function HomePage() {
     const handleHotkey = () => {
       console.log("Hotkey triggered! isRecording:", isRecording);
       if (!isRecording) {
+        console.log("Starting recording via hotkey");
         startRecording();
       } else {
+        console.log("Stopping recording via hotkey");
         stopRecording();
       }
     };
 
-    const unlisten = (window as any).__TAURI__.event.listen("hotkey-triggered", handleHotkey);
+    let unlistenFn: any = null;
+
+    // Wait for Tauri to be fully loaded
+    const setupListener = async () => {
+      try {
+        unlistenFn = await (window as any).__TAURI__.event.listen("hotkey-triggered", handleHotkey);
+        console.log("Hotkey listener registered successfully");
+      } catch (error) {
+        console.error("Failed to register hotkey listener:", error);
+      }
+    };
+
+    setupListener();
 
     return () => {
-      unlisten.then((f: any) => f());
+      if (unlistenFn) {
+        unlistenFn();
+      }
     };
   }, [isRecording, startRecording, stopRecording]);
 
@@ -448,8 +523,13 @@ export default function HomePage() {
         console.log("Fetching audio from Rust backend...");
         const audioData = await invoke("get_recording_audio", { id }) as number[];
         console.log("Received audio data, length:", audioData.length);
-        blob = new Blob([new Uint8Array(audioData)], { type: "audio/wav" });
+        
+        // Create proper WAV blob from the byte array
+        const uint8Array = new Uint8Array(audioData);
+        blob = new Blob([uint8Array], { type: "audio/wav" });
         audioBlobs.current.set(id, blob);
+        
+        console.log("Created blob, size:", blob.size, "type:", blob.type);
       }
 
       if (blob) {
@@ -665,6 +745,21 @@ export default function HomePage() {
                       >
                         <img src="/transkription-ai.png" alt="AI" />
                       </button>
+                      
+                      {/* Prompt Selector Dropdown */}
+                      {isTauri() && promptTemplates.length > 0 && (
+                        <select 
+                          value={selectedPrompt} 
+                          onChange={(e) => setSelectedPrompt(e.target.value)}
+                          className="rec-prompt-dropdown"
+                          title="Prompt-Template auswählen"
+                        >
+                          {promptTemplates.map((template) => (
+                            <option key={template} value={template}>{template}</option>
+                          ))}
+                        </select>
+                      )}
+                      
                       <button
                         onClick={() => reEnrichWithPrompt(rec.id)}
                         className="rec-refresh-btn-inline"
@@ -737,7 +832,7 @@ export default function HomePage() {
             <h3 className="error-title">Mikrofon blockiert</h3>
             <p className="error-message">{errorMessage}</p>
             <button onClick={() => setErrorMessage(null)} className="error-close-btn">
-              Verstanden
+              OK
             </button>
           </div>
         </div>
@@ -778,18 +873,17 @@ export default function HomePage() {
 
         /* Top Panel */
         .display-panel {
-          width: 900px;
+          width: 550px;
           height: 200px;
           background: #1a1d23;
           border-radius: 24px;
           border: 1px solid #2d323b;
           margin-bottom: 20px;
-          margin-left: 0;
+          margin-left: 68px;
           margin-right: auto;
           transition: all 0.4s ease;
           position: relative;
           flex-shrink: 0;
-          align-self: flex-start;
         }
         .display-panel.hidden { 
           opacity: 0; 
@@ -967,29 +1061,79 @@ export default function HomePage() {
         
         /* Inline action buttons inside rec-card */
         .rec-action-btn-inline { 
-          width: 26px; height: 26px; background: white; border-radius: 6px; 
-          border: none; cursor: pointer; transition: all 0.2s; 
-          display: flex; align-items: center; justify-content: center; padding: 4px;
+          width: 26px; height: 26px; 
+          background: #2d323b; 
+          border-radius: 6px; 
+          border: 1px solid #3d424b; 
+          cursor: pointer; 
+          transition: all 0.2s; 
+          display: flex; 
+          align-items: center; 
+          justify-content: center; 
+          padding: 4px;
           flex-shrink: 0;
         }
-        .rec-action-btn-inline:hover { transform: scale(1.1); }
+        .rec-action-btn-inline:hover { 
+          transform: scale(1.1); 
+          background: #3d424b;
+          border-color: #4dabf7;
+        }
         .rec-action-btn-inline:disabled { opacity: 0.5; cursor: not-allowed; }
-        .rec-action-btn-inline:disabled:hover { transform: scale(1); }
+        .rec-action-btn-inline:disabled:hover { 
+          transform: scale(1); 
+          background: #2d323b; 
+          border-color: #3d424b; 
+        }
         .rec-action-btn-inline img { width: 100%; height: 100%; object-fit: contain; }
         
         .rec-refresh-btn-inline {
-          width: 26px; height: 26px; background: transparent; border-radius: 6px;
-          border: 1px solid #333; cursor: pointer; transition: all 0.2s;
-          display: flex; align-items: center; justify-content: center;
-          color: #4dabf7; flex-shrink: 0;
+          width: 26px; height: 26px; 
+          background: #2d323b; 
+          border-radius: 6px;
+          border: 1px solid #3d424b; 
+          cursor: pointer; 
+          transition: all 0.2s;
+          display: flex; 
+          align-items: center; 
+          justify-content: center;
+          color: rgb(169, 169, 169); 
+          flex-shrink: 0;
         }
         .rec-refresh-btn-inline:hover { 
-          background: #4dabf7; 
-          color: white; 
           transform: scale(1.1); 
+          background: #3d424b;
+          border-color: #4dabf7;
         }
         .rec-refresh-btn-inline:disabled { opacity: 0.5; cursor: not-allowed; }
-        .rec-refresh-btn-inline:disabled:hover { transform: scale(1); background: transparent; color: #4dabf7; }
+        .rec-refresh-btn-inline:disabled:hover { 
+          transform: scale(1); 
+          background: #2d323b; 
+          border-color: #3d424b;
+          color: rgb(169, 169, 169); 
+        }
+        
+        /* Inline Prompt Dropdown in Recording Card */
+        .rec-prompt-dropdown {
+          background: #2d323b;
+          color: #e0e0e0;
+          border: 1px solid #3d424b;
+          border-radius: 6px;
+          padding: 4px 8px;
+          font-size: 12px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s;
+          flex-shrink: 0;
+          max-width: 100px;
+        }
+        .rec-prompt-dropdown:hover {
+          border-color: #4dabf7;
+          background: #3d424b;
+        }
+        .rec-prompt-dropdown:focus {
+          outline: none;
+          border-color: #4dabf7;
+        }
 
         .rec-processing-inline {
           width: 26px; height: 26px; 

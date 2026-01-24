@@ -69,6 +69,60 @@ pub fn transcribe_file(timestamp: &str) -> Result<String, String> {
     inner_transcribe(timestamp).map_err(|e| e.to_string())
 }
 
+// Filtert Whisper-Halluzinationen und ungültige Transkriptionen
+fn is_valid_transcription(text: &str) -> bool {
+    let text_lower = text.to_lowercase().trim();
+    
+    // Leere oder sehr kurze Texte
+    if text_lower.is_empty() || text_lower.len() < 3 {
+        return false;
+    }
+    
+    // Bekannte Whisper-Halluzinationen
+    let hallucinations = [
+        "musik",
+        "music",
+        "untertitel",
+        "subtitle",
+        "danke",
+        "thank you",
+        "thanks for watching",
+        "sie lacht",
+        "sie ist auf die beine",
+        "sie hinsichtlich der beine",
+        "lacht",
+        "applaus",
+        "applause",
+        "beifall",
+        "copyright",
+        "www.",
+        "http",
+    ];
+    
+    // Prüfe auf Halluzinationen
+    for hallucination in &hallucinations {
+        if text_lower.contains(hallucination) {
+            return false;
+        }
+    }
+    
+    // Prüfe auf Muster wie "* Text *" oder "(Text)"
+    let trimmed = text.trim();
+    if (trimmed.starts_with('*') && trimmed.ends_with('*')) ||
+       (trimmed.starts_with('(') && trimmed.ends_with(')')) ||
+       (trimmed.starts_with('[') && trimmed.ends_with(']')) {
+        return false;
+    }
+    
+    // Prüfe ob der Text nur aus Sonderzeichen besteht
+    let has_letters = text.chars().any(|c| c.is_alphabetic());
+    if !has_letters {
+        return false;
+    }
+    
+    true
+}
+
 // Interne Logik zur Verarbeitung der Audiodatei mit dem Whisper-Modell.
 fn inner_transcribe(timestamp: &str) -> Result<String, Box<dyn std::error::Error>> {
     ensure_model()?;
@@ -102,12 +156,21 @@ fn inner_transcribe(timestamp: &str) -> Result<String, Box<dyn std::error::Error
     for i in 0..num_segments {
         if let Some(segment) = state.get_segment(i) {
             if let Ok(segment_text) = segment.to_str() {
-                text.push_str(segment_text);
-                text.push(' ');
+                let cleaned = segment_text.trim();
+                // Nur gültige Segmente hinzufügen
+                if is_valid_transcription(cleaned) {
+                    text.push_str(cleaned);
+                    text.push(' ');
+                }
             }
         }
     }
     let transcript = text.trim().to_string();
+    
+    // Wenn nach dem Filtern kein Text übrig ist, gebe einen Fehler zurück
+    if transcript.is_empty() || !is_valid_transcription(&transcript) {
+        return Err("Keine gültige Transkription erkannt (möglicherweise nur Hintergrundgeräusche)".into());
+    }
 
     fs::write(&out_path, &transcript)?;
     Ok(transcript)
