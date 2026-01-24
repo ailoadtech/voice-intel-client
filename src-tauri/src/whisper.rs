@@ -71,7 +71,8 @@ pub fn transcribe_file(timestamp: &str) -> Result<String, String> {
 
 // Filtert Whisper-Halluzinationen und ungültige Transkriptionen
 fn is_valid_transcription(text: &str) -> bool {
-    let text_lower = text.to_lowercase().trim();
+    let text_lower = text.to_lowercase();
+    let text_lower = text_lower.trim();
     
     // Leere oder sehr kurze Texte
     if text_lower.is_empty() || text_lower.len() < 3 {
