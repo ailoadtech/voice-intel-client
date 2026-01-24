@@ -145,21 +145,26 @@ export default function HomePage() {
     const checkAndDownloadModel = async () => {
       let progressInterval: NodeJS.Timeout | null = null;
       abortDownloadRef.current = false;
+      let downloadStarted = false;
       
       const handleEscape = (e: KeyboardEvent) => {
         if (e.key === 'Escape') {
-          console.log("ESC pressed - aborting download");
+          console.log("ESC pressed - closing dialog");
           abortDownloadRef.current = true;
           e.preventDefault();
           e.stopPropagation();
+          e.stopImmediatePropagation();
           
           // Immediately close the dialog
-          if (progressInterval) clearInterval(progressInterval);
+          if (progressInterval) {
+            clearInterval(progressInterval);
+            progressInterval = null;
+          }
           setIsModelLoading(false);
           setIsInitializing(false);
           setDownloadProgress(0);
           setIsModelAvailable(false);
-          document.removeEventListener('keydown', handleEscape);
+          document.removeEventListener('keydown', handleEscape, true);
         }
       };
       
@@ -169,13 +174,16 @@ export default function HomePage() {
         setDownloadProgress(0);
         console.log("Checking Whisper model...");
         
-        // Add escape key listener with capture phase
+        // Add escape key listener with capture phase for highest priority
         document.addEventListener('keydown', handleEscape, true);
         
         // Simulate progress during download
         progressInterval = setInterval(() => {
           if (abortDownloadRef.current) {
-            if (progressInterval) clearInterval(progressInterval);
+            if (progressInterval) {
+              clearInterval(progressInterval);
+              progressInterval = null;
+            }
             return;
           }
           setDownloadProgress(prev => {
@@ -184,19 +192,24 @@ export default function HomePage() {
           });
         }, 500);
         
-        // Start download in background (non-blocking)
+        downloadStarted = true;
+        
+        // Start download - this will run in background even if we abort
         const downloadPromise = invoke("check_model");
         
-        // Wait for either download completion or abort
+        // Wait for download completion
         await downloadPromise;
         
-        // If aborted, don't continue
+        // If user aborted, don't update UI
         if (abortDownloadRef.current) {
-          console.log("Download was aborted");
+          console.log("Download completed but user already closed dialog");
           return;
         }
         
-        if (progressInterval) clearInterval(progressInterval);
+        if (progressInterval) {
+          clearInterval(progressInterval);
+          progressInterval = null;
+        }
         setDownloadProgress(100);
         
         // Wait a moment to show 100%
@@ -207,23 +220,27 @@ export default function HomePage() {
       } catch (err: any) {
         console.error("Failed to load Whisper model:", err);
         
+        // If user already aborted, don't show error
         if (abortDownloadRef.current) {
           console.log("Download was cancelled by user");
-          setIsModelAvailable(false);
-        } else {
-          setIsModelAvailable(false);
-          setErrorMessage("Fehler beim Laden des Whisper-Modells: " + (err.message || "Unbekannter Fehler"));
+          return;
         }
+        
+        setIsModelAvailable(false);
+        setErrorMessage("Fehler beim Laden des Whisper-Modells: " + (err.message || "Unbekannter Fehler"));
       } finally {
-        if (progressInterval) clearInterval(progressInterval);
+        if (progressInterval) {
+          clearInterval(progressInterval);
+          progressInterval = null;
+        }
         document.removeEventListener('keydown', handleEscape, true);
         
+        // Only update UI if not aborted
         if (!abortDownloadRef.current) {
           setIsModelLoading(false);
           setIsInitializing(false);
           setDownloadProgress(0);
         }
-        abortDownloadRef.current = false;
       }
     };
 
