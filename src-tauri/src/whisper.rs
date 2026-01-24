@@ -69,6 +69,29 @@ pub fn transcribe_file(timestamp: &str) -> Result<String, String> {
     inner_transcribe(timestamp).map_err(|e| e.to_string())
 }
 
+// Entfernt Halluzinationen aus dem Text
+fn remove_hallucinations(text: &str) -> String {
+    let mut cleaned = text.to_string();
+    
+    // Entferne Klammer-Inhalte wie "(Sie lacht.)", "(Musik)", etc.
+    let re_parentheses = regex::Regex::new(r"\([^)]*\)").unwrap();
+    cleaned = re_parentheses.replace_all(&cleaned, "").to_string();
+    
+    // Entferne eckige Klammern wie "[Musik]", "[Applaus]", etc.
+    let re_brackets = regex::Regex::new(r"\[[^\]]*\]").unwrap();
+    cleaned = re_brackets.replace_all(&cleaned, "").to_string();
+    
+    // Entferne Sternchen-Inhalte wie "* Musik *"
+    let re_asterisks = regex::Regex::new(r"\*[^*]*\*").unwrap();
+    cleaned = re_asterisks.replace_all(&cleaned, "").to_string();
+    
+    // Entferne mehrfache Leerzeichen
+    let re_spaces = regex::Regex::new(r"\s+").unwrap();
+    cleaned = re_spaces.replace_all(&cleaned, " ").to_string();
+    
+    cleaned.trim().to_string()
+}
+
 // Filtert Whisper-Halluzinationen und ungültige Transkriptionen
 fn is_valid_transcription(text: &str) -> bool {
     let text_lower = text.to_lowercase();
@@ -79,7 +102,7 @@ fn is_valid_transcription(text: &str) -> bool {
         return false;
     }
     
-    // Bekannte Whisper-Halluzinationen
+    // Bekannte Whisper-Halluzinationen (komplette Texte)
     let hallucinations = [
         "musik",
         "music",
@@ -88,10 +111,6 @@ fn is_valid_transcription(text: &str) -> bool {
         "danke",
         "thank you",
         "thanks for watching",
-        "sie lacht",
-        "sie ist auf die beine",
-        "sie hinsichtlich der beine",
-        "lacht",
         "applaus",
         "applause",
         "beifall",
@@ -102,12 +121,12 @@ fn is_valid_transcription(text: &str) -> bool {
     
     // Prüfe auf Halluzinationen
     for hallucination in &hallucinations {
-        if text_lower.contains(hallucination) {
+        if text_lower == hallucination || text_lower.contains(&format!("* {} *", hallucination)) {
             return false;
         }
     }
     
-    // Prüfe auf Muster wie "* Text *" oder "(Text)"
+    // Prüfe auf Muster wie "* Text *" oder "(Text)" als ganzer Text
     let trimmed = text.trim();
     if (trimmed.starts_with('*') && trimmed.ends_with('*')) ||
        (trimmed.starts_with('(') && trimmed.ends_with(')')) ||

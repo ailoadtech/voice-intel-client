@@ -50,7 +50,23 @@ struct Recording {
 // Speichert Audiodaten in eine Datei und reiht sie in die Warteschlange ein.
 #[tauri::command]
 async fn save_and_queue_recording(samples: Vec<i16>) -> Result<String, String> {
-    audio::save_recording(&samples).map_err(|e| e.to_string())
+    println!("save_and_queue_recording called with {} samples", samples.len());
+    
+    if samples.is_empty() {
+        println!("Warning: No samples provided");
+        return Err("No audio samples provided".to_string());
+    }
+    
+    match audio::save_recording(&samples) {
+        Ok(id) => {
+            println!("Recording saved successfully with ID: {}", id);
+            Ok(id)
+        }
+        Err(e) => {
+            eprintln!("Failed to save recording: {}", e);
+            Err(e.to_string())
+        }
+    }
 }
 
 #[tauri::command]
@@ -85,8 +101,28 @@ async fn delete_recording(id: String) -> Result<(), String> {
 
 #[tauri::command]
 async fn check_model() -> Result<bool, String> {
-    whisper::ensure_model().map_err(|e| e.to_string())?;
-    Ok(true)
+    println!("check_model command called");
+    
+    // Run blocking operation in a blocking thread
+    let result = tokio::task::spawn_blocking(|| {
+        println!("Starting model check/download...");
+        whisper::ensure_model()
+    }).await;
+    
+    match result {
+        Ok(Ok(())) => {
+            println!("Model check/download completed successfully");
+            Ok(true)
+        }
+        Ok(Err(e)) => {
+            eprintln!("Model check/download failed: {}", e);
+            Err(e.to_string())
+        }
+        Err(e) => {
+            eprintln!("Task join error: {}", e);
+            Err(format!("Task error: {}", e))
+        }
+    }
 }
 
 #[tauri::command]

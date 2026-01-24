@@ -250,11 +250,13 @@ export default function HomePage() {
         
         downloadStarted = true;
         
+        console.log("Invoking check_model command...");
         // Start download - this will run in background even if we abort
         const downloadPromise = invoke("check_model");
         
         // Wait for download completion
-        await downloadPromise;
+        const result = await downloadPromise;
+        console.log("check_model result:", result);
         
         // If user aborted, don't update UI
         if (abortDownloadRef.current) {
@@ -275,6 +277,7 @@ export default function HomePage() {
         console.log("Whisper model is ready");
       } catch (err: any) {
         console.error("Failed to load Whisper model:", err);
+        console.error("Error details:", err.message, err.stack);
         
         // If user already aborted, don't show error
         if (abortDownloadRef.current) {
@@ -319,19 +322,40 @@ export default function HomePage() {
       };
 
       mediaRecorderRef.current.onstop = async () => {
+        console.log("MediaRecorder stopped, processing audio...");
         const duration = Math.round((Date.now() - startTime) / 1000);
+        console.log("Recording duration:", duration, "seconds");
+        console.log("Audio chunks collected:", audioChunks.length);
+        
+        if (audioChunks.length === 0) {
+          console.error("No audio chunks collected!");
+          setErrorMessage("Keine Audio-Daten aufgenommen. Bitte überprüfen Sie Ihr Mikrofon.");
+          return;
+        }
+        
         const blob = new Blob(audioChunks, { type: audioChunks[0]?.type || "audio/webm" });
+        console.log("Created blob, size:", blob.size, "bytes, type:", blob.type);
+        
+        if (blob.size === 0) {
+          console.error("Audio blob is empty!");
+          setErrorMessage("Audio-Aufnahme ist leer. Bitte versuchen Sie es erneut.");
+          return;
+        }
+        
         const arrayBuffer = await blob.arrayBuffer();
+        console.log("ArrayBuffer size:", arrayBuffer.byteLength);
 
         const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
         const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
         const channelData = audioBuffer.getChannelData(0); // Float32Array
+        console.log("Decoded audio, samples:", channelData.length, "sample rate:", audioBuffer.sampleRate);
 
         // For Tauri, we need Int16
         const samples = new Int16Array(channelData.length);
         for (let i = 0; i < channelData.length; i++) {
           samples[i] = Math.max(-32768, Math.min(32767, channelData[i] * 32767));
         }
+        console.log("Converted to Int16, samples:", samples.length);
 
         // Create a proper WAV blob for playback
         const wavBlob = createWavBlob(samples, 16000);
@@ -342,7 +366,10 @@ export default function HomePage() {
 
         if (isTauri()) {
           try {
+            console.log("Attempting to save recording with", samples.length, "samples");
             const id = await invoke("save_and_queue_recording", { samples: Array.from(samples) }) as string;
+            console.log("Recording saved successfully with ID:", id);
+            
             audioBlobs.current.set(id, wavBlob); // Store the WAV blob for playback
             const newRec: Recording = {
               id,
@@ -351,16 +378,20 @@ export default function HomePage() {
               duration: duration,
               status: "transcribing"
             };
+            console.log("Adding new recording to state:", newRec);
+            
             setRecordings(prev => {
               const updated = [newRec, ...prev];
               // Sort by ID (timestamp) descending
               updated.sort((a, b) => parseInt(b.id) - parseInt(a.id));
+              console.log("Updated recordings list:", updated.length, "recordings");
               return updated;
             });
             setStatus("Gespeichert");
             console.log("Recording saved with ID:", id);
           } catch (e) {
             console.error("Save error:", e);
+            console.error("Error details:", e);
             setStatus("Fehler beim Speichern");
             setErrorMessage("Fehler beim Speichern der Aufnahme: " + (e as any).toString());
           }
