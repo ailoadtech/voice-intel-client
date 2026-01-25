@@ -13,17 +13,22 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'npm'
 
-      - name: Clean previous builds
+      - name: Deep Clean Environment
         run: |
           if exist .next rmdir /s /q .next
           if exist out rmdir /s /q out
           if exist dist rmdir /s /q dist
+          if exist release rmdir /s /q release
+          cd src-tauri && cargo clean
         shell: cmd
 
       - name: Install Node.js dependencies
@@ -72,3 +77,4 @@ jobs:
           name: voice-intel-windows-portable
           path: release\
           retention-days: 7
+          overwrite: true
