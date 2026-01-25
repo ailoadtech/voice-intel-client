@@ -173,7 +173,11 @@ export default function HomePage() {
 
   // Load existing recordings on mount and sort by timestamp
   useEffect(() => {
-    if (!isTauri()) return;
+    if (!isTauri()) {
+      // In browser mode, skip initialization
+      setIsInitializing(false);
+      return;
+    }
 
     const loadExistingRecordings = async () => {
       try {
@@ -229,6 +233,12 @@ export default function HomePage() {
         setIsInitializing(true);
         setDownloadProgress(0);
         console.log("Checking Whisper model...");
+        
+        // Wait for Tauri to be fully ready
+        if (!(window as any).__TAURI__) {
+          console.log("Waiting for Tauri to initialize...");
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
         
         // Add escape key listener with capture phase for highest priority
         document.addEventListener('keydown', handleEscape, true);
