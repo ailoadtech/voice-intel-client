@@ -287,6 +287,31 @@ fn main() {
             app.global_shortcut().register(ctrl_shift_space)?;
 
             let app_handle = app.handle().clone();
+            
+            // Check and download model on startup
+            logger::Logger::log("Checking model on startup...");
+            let app_handle_model = app.handle().clone();
+            async_runtime::spawn(async move {
+                logger::Logger::log("Starting model check in background task");
+                match tokio::task::spawn_blocking(|| {
+                    whisper::ensure_model()
+                }).await {
+                    Ok(Ok(())) => {
+                        logger::Logger::log("Model check completed successfully on startup");
+                        // Emit event to frontend that model is ready
+                        let _ = app_handle_model.emit("model_ready", ());
+                    }
+                    Ok(Err(e)) => {
+                        logger::Logger::log_error("startup model check", &e);
+                        let _ = app_handle_model.emit("model_failed", e);
+                    }
+                    Err(e) => {
+                        let err_msg = format!("Model check task error: {}", e);
+                        logger::Logger::log_error("startup model check task", &err_msg);
+                        let _ = app_handle_model.emit("model_failed", err_msg);
+                    }
+                }
+            });
 
             logger::Logger::log("Spawning background worker");
             // Spawn background worker

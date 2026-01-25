@@ -4,11 +4,27 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
+// Global logging function that writes to window for debugging
+const debugLog = (message: string) => {
+  console.log(message);
+  if (typeof window !== "undefined") {
+    if (!(window as any).__DEBUG_LOGS__) {
+      (window as any).__DEBUG_LOGS__ = [];
+    }
+    (window as any).__DEBUG_LOGS__.push(`${new Date().toISOString()}: ${message}`);
+  }
+};
+
 // Utility: Check if running inside Tauri
 const isTauri = () => {
-  if (typeof window === "undefined") return false;
-  // Check for Tauri API
-  return !!(window as any).__TAURI__;
+  if (typeof window === "undefined") {
+    debugLog("isTauri: window is undefined");
+    return false;
+  }
+  // Check for Tauri API - be more thorough
+  const hasTauri = !!(window as any).__TAURI__;
+  debugLog(`isTauri check: ${hasTauri}, window.__TAURI__: ${typeof (window as any).__TAURI__}`);
+  return hasTauri;
 };
 
 // Utility: Create a proper WAV blob from Int16 samples
@@ -134,6 +150,41 @@ export default function HomePage() {
     };
   }, []);
 
+  // Listen for model ready/failed events from backend
+  useEffect(() => {
+    if (!isTauri()) return;
+    
+    const setupModelListeners = async () => {
+      const unlistenReady = await (window as any).__TAURI__.event.listen(
+        "model_ready",
+        () => {
+          console.log("Model ready event received");
+          setIsModelAvailable(true);
+          setIsModelLoading(false);
+          setIsInitializing(false);
+        }
+      );
+      
+      const unlistenFailed = await (window as any).__TAURI__.event.listen(
+        "model_failed",
+        (event: any) => {
+          console.log("Model failed event received:", event.payload);
+          setIsModelAvailable(false);
+          setIsModelLoading(false);
+          setIsInitializing(false);
+          setErrorMessage("Fehler beim Laden des Whisper-Modells: " + event.payload);
+        }
+      );
+      
+      return () => {
+        unlistenReady();
+        unlistenFailed();
+      };
+    };
+    
+    setupModelListeners();
+  }, []);
+
   // Listen for enriched result from Rust (Tauri only)
   useEffect(() => {
     if (!isTauri()) return;
@@ -210,6 +261,11 @@ export default function HomePage() {
       }
 
       console.log("Tauri mode detected, starting initialization...");
+      
+      // Model check happens automatically in backend on startup
+      // Just show splash screen and wait for model_ready/model_failed events
+      setIsModelLoading(true);
+      setIsInitializing(true);
 
       const loadExistingRecordings = async () => {
       try {
@@ -234,122 +290,9 @@ export default function HomePage() {
       }
     };
 
-    const checkAndDownloadModel = async () => {
-      let progressInterval: NodeJS.Timeout | null = null;
-      abortDownloadRef.current = false;
-      let downloadStarted = false;
-      
-      const handleEscape = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') {
-          console.log("ESC pressed - closing dialog");
-          abortDownloadRef.current = true;
-          e.preventDefault();
-          e.stopPropagation();
-          e.stopImmediatePropagation();
-          
-          // Immediately close the dialog
-          if (progressInterval) {
-            clearInterval(progressInterval);
-            progressInterval = null;
-          }
-          setIsModelLoading(false);
-          setIsInitializing(false);
-          setDownloadProgress(0);
-          setIsModelAvailable(false);
-          document.removeEventListener('keydown', handleEscape, true);
-        }
-      };
-      
-      try {
-        setIsModelLoading(true);
-        setIsInitializing(true);
-        setDownloadProgress(0);
-        console.log("Checking Whisper model...");
-        
-        // Wait for Tauri to be fully ready
-        if (!(window as any).__TAURI__) {
-          console.log("Waiting for Tauri to initialize...");
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-        
-        // Add escape key listener with capture phase for highest priority
-        document.addEventListener('keydown', handleEscape, true);
-        
-        // Simulate progress during download
-        progressInterval = setInterval(() => {
-          if (abortDownloadRef.current) {
-            if (progressInterval) {
-              clearInterval(progressInterval);
-              progressInterval = null;
-            }
-            return;
-          }
-          setDownloadProgress(prev => {
-            if (prev >= 95) return prev;
-            return prev + Math.random() * 5;
-          });
-        }, 500);
-        
-        downloadStarted = true;
-        
-        console.log("Invoking check_model command...");
-        // Start download - this will run in background even if we abort
-        const downloadPromise = invoke("check_model");
-        
-        // Wait for download completion
-        const result = await downloadPromise;
-        console.log("check_model result:", result);
-        
-        // If user aborted, don't update UI
-        if (abortDownloadRef.current) {
-          console.log("Download completed but user already closed dialog");
-          return;
-        }
-        
-        if (progressInterval) {
-          clearInterval(progressInterval);
-          progressInterval = null;
-        }
-        setDownloadProgress(100);
-        
-        // Wait a moment to show 100%
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        setIsModelAvailable(true);
-        console.log("Whisper model is ready");
-      } catch (err: any) {
-        console.error("Failed to load Whisper model:", err);
-        console.error("Error details:", err.message, err.stack);
-        
-        // If user already aborted, don't show error
-        if (abortDownloadRef.current) {
-          console.log("Download was cancelled by user");
-          return;
-        }
-        
-        setIsModelAvailable(false);
-        setErrorMessage("Fehler beim Laden des Whisper-Modells: " + (err.message || "Unbekannter Fehler"));
-      } finally {
-        if (progressInterval) {
-          clearInterval(progressInterval);
-          progressInterval = null;
-        }
-        document.removeEventListener('keydown', handleEscape, true);
-        
-        // Only update UI if not aborted
-        if (!abortDownloadRef.current) {
-          setIsModelLoading(false);
-          setIsInitializing(false);
-          setDownloadProgress(0);
-        }
-      }
-    };
-
-    // Check model first, then load other data
-    checkAndDownloadModel().then(() => {
-      loadExistingRecordings();
-      loadPromptTemplates();
-    });
+    // Load data
+    loadExistingRecordings();
+    loadPromptTemplates();
     };
     
     // Start initialization
@@ -412,13 +355,13 @@ export default function HomePage() {
 
         if (isTauri()) {
           try {
-            console.log("Attempting to save recording with", samples.length, "samples");
-            console.log("Samples array first 10:", Array.from(samples).slice(0, 10));
+            debugLog(`Attempting to save recording with ${samples.length} samples`);
+            debugLog(`Samples array first 10: ${Array.from(samples).slice(0, 10)}`);
             const samplesArray = Array.from(samples);
-            console.log("Converted samples to array, length:", samplesArray.length);
+            debugLog(`Converted samples to array, length: ${samplesArray.length}`);
             
             const id = await invoke("save_and_queue_recording", { samples: samplesArray }) as string;
-            console.log("Recording saved successfully with ID:", id);
+            debugLog(`Recording saved successfully with ID: ${id}`);
             
             audioBlobs.current.set(id, wavBlob); // Store the WAV blob for playback
             const newRec: Recording = {
@@ -428,24 +371,27 @@ export default function HomePage() {
               duration: duration,
               status: "transcribing"
             };
-            console.log("Adding new recording to state:", newRec);
+            debugLog(`Adding new recording to state: ${JSON.stringify(newRec)}`);
             
             setRecordings(prev => {
               const updated = [...prev, newRec];
               // Sort by ID (timestamp) ascending (oldest first, newest at bottom)
               updated.sort((a, b) => parseInt(a.id) - parseInt(b.id));
-              console.log("Updated recordings list:", updated.length, "recordings");
+              debugLog(`Updated recordings list: ${updated.length} recordings`);
               return updated;
             });
             setStatus("Gespeichert");
-            console.log("Recording saved with ID:", id);
+            debugLog(`Recording saved with ID: ${id}`);
           } catch (e) {
+            debugLog(`Save error: ${e}`);
+            debugLog(`Error details: ${JSON.stringify(e)}`);
             console.error("Save error:", e);
             console.error("Error details:", e);
             setStatus("Fehler beim Speichern");
             setErrorMessage("Fehler beim Speichern der Aufnahme: " + (e as any).toString());
           }
         } else {
+          debugLog("Not in Tauri mode - using browser mode");
           // Browser Mode: Use Worker
           const id = Date.now().toString();
           audioBlobs.current.set(id, wavBlob);
