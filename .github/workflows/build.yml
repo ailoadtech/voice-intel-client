@@ -25,7 +25,6 @@ jobs:
           if exist .next rmdir /s /q .next
           if exist out rmdir /s /q out
           if exist dist rmdir /s /q dist
-          if exist src-tauri\target\release rmdir /s /q src-tauri\target\release
         shell: cmd
 
       - name: Install Node.js dependencies
@@ -43,11 +42,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
-          cache-on-failure: false
-
-      - name: Clean Cargo build artifacts
-        run: cargo clean
-        working-directory: src-tauri
+          cache-on-failure: true
 
       - name: Build Windows EXE
         run: cargo build --release
