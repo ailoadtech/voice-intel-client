@@ -5,7 +5,11 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 // Utility: Check if running inside Tauri
-const isTauri = () => typeof window !== "undefined" && (window as any).__TAURI__;
+const isTauri = () => {
+  if (typeof window === "undefined") return false;
+  // Check for Tauri API
+  return !!(window as any).__TAURI__;
+};
 
 // Utility: Create a proper WAV blob from Int16 samples
 const createWavBlob = (samples: Int16Array, sampleRate: number): Blob => {
@@ -180,16 +184,34 @@ export default function HomePage() {
   useEffect(() => {
     console.log("Initialization useEffect running, isTauri:", isTauri());
     
-    if (!isTauri()) {
-      // In browser mode, skip initialization
-      console.log("Browser mode detected, skipping initialization");
-      setIsInitializing(false);
-      return;
-    }
+    // Wait for Tauri to be available
+    const waitForTauri = async () => {
+      let attempts = 0;
+      while (attempts < 10) {
+        if ((window as any).__TAURI__) {
+          console.log("Tauri API detected after", attempts, "attempts");
+          return true;
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
+      }
+      console.log("Tauri API not detected after 10 attempts - assuming browser mode");
+      return false;
+    };
+    
+    const initialize = async () => {
+      const hasTauri = await waitForTauri();
+      
+      if (!hasTauri) {
+        // In browser mode, skip initialization
+        console.log("Browser mode detected, skipping initialization");
+        setIsInitializing(false);
+        return;
+      }
 
-    console.log("Tauri mode detected, starting initialization...");
+      console.log("Tauri mode detected, starting initialization...");
 
-    const loadExistingRecordings = async () => {
+      const loadExistingRecordings = async () => {
       try {
         const existingRecordings = await invoke("get_all_recordings") as Recording[];
         // Sort by ID (timestamp) in ascending order (oldest first, newest at bottom)
@@ -328,6 +350,10 @@ export default function HomePage() {
       loadExistingRecordings();
       loadPromptTemplates();
     });
+    };
+    
+    // Start initialization
+    initialize();
   }, []);
 
   const startRecording = useCallback(async () => {
