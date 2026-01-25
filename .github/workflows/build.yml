@@ -42,6 +42,11 @@ jobs:
         with:
           toolchain: stable
 
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "src-tauri -> target"
+
       - name: Build Windows EXE
         run: cargo build --release
         working-directory: src-tauri
