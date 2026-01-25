@@ -192,8 +192,8 @@ export default function HomePage() {
     const loadExistingRecordings = async () => {
       try {
         const existingRecordings = await invoke("get_all_recordings") as Recording[];
-        // Sort by ID (timestamp) in descending order (newest first)
-        existingRecordings.sort((a, b) => parseInt(b.id) - parseInt(a.id));
+        // Sort by ID (timestamp) in ascending order (oldest first, newest at bottom)
+        existingRecordings.sort((a, b) => parseInt(a.id) - parseInt(b.id));
         setRecordings(existingRecordings);
       } catch (err) {
         console.error("Failed to load recordings:", err);
@@ -405,9 +405,9 @@ export default function HomePage() {
             console.log("Adding new recording to state:", newRec);
             
             setRecordings(prev => {
-              const updated = [newRec, ...prev];
-              // Sort by ID (timestamp) descending
-              updated.sort((a, b) => parseInt(b.id) - parseInt(a.id));
+              const updated = [...prev, newRec];
+              // Sort by ID (timestamp) ascending (oldest first, newest at bottom)
+              updated.sort((a, b) => parseInt(a.id) - parseInt(b.id));
               console.log("Updated recordings list:", updated.length, "recordings");
               return updated;
             });
@@ -432,9 +432,9 @@ export default function HomePage() {
             status: "transcribing"
           };
           setRecordings(prev => {
-            const updated = [newRec, ...prev];
-            // Sort by ID (timestamp) descending
-            updated.sort((a, b) => parseInt(b.id) - parseInt(a.id));
+            const updated = [...prev, newRec];
+            // Sort by ID (timestamp) ascending (oldest first, newest at bottom)
+            updated.sort((a, b) => parseInt(a.id) - parseInt(b.id));
             return updated;
           });
 
