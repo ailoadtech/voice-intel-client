@@ -81,6 +81,11 @@ export default function HomePage() {
   const workerRef = useRef<Worker | null>(null);
   const audioBlobs = useRef<Map<string, Blob>>(new Map());
 
+  // Debug: Log component mount
+  useEffect(() => {
+    console.log("HomePage component mounted, isTauri:", isTauri(), "isInitializing:", true);
+  }, []);
+
   // Initialize Worker for Browser Mode
   useEffect(() => {
     if (isTauri()) return;
@@ -173,11 +178,16 @@ export default function HomePage() {
 
   // Load existing recordings on mount and sort by timestamp
   useEffect(() => {
+    console.log("Initialization useEffect running, isTauri:", isTauri());
+    
     if (!isTauri()) {
       // In browser mode, skip initialization
+      console.log("Browser mode detected, skipping initialization");
       setIsInitializing(false);
       return;
     }
+
+    console.log("Tauri mode detected, starting initialization...");
 
     const loadExistingRecordings = async () => {
       try {
@@ -732,28 +742,8 @@ export default function HomePage() {
 
         {/* History Stack and Record Button - Bottom Layout */}
         <div className="controls-and-history">
-          {/* History Stack - ALL recordings including current/newest */}
+          {/* History Stack - saved recordings only */}
           <div className="history-stack custom-scrollbar">
-            {/* Show current recording if recording */}
-            {isRecording && (
-              <div className="rec-item">
-                <div className="rec-card recording-active">
-                  <div className="rec-footer">
-                    <div className="rec-time">
-                      {new Date().toLocaleDateString('de-DE').replace(/\//g, '.') + ' - ' + new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + ' h'}
-                    </div>
-                    <div className="rec-play-btn recording-dot-container">
-                      <span className="recording-dot-pulse"></span>
-                    </div>
-                    <span className="rec-duration recording-timer">
-                      {formatDuration(recordingTime)}
-                    </span>
-                    <span className="rec-text-preview">Aufnahme läuft...</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Show all saved recordings */}
             {recordings.map((rec) => (
             <div key={rec.id} className="rec-item">
@@ -880,7 +870,7 @@ export default function HomePage() {
 
           </div>
 
-          {/* Record Button - Bottom Left */}
+          {/* Record Button and Current Recording - Bottom Left */}
           <div className="record-section">
             <button
               onClick={isRecording ? stopRecording : startRecording}
@@ -890,6 +880,26 @@ export default function HomePage() {
             >
               <div className="record-indicator"></div>
             </button>
+            
+            {/* Show current recording next to button */}
+            {isRecording && (
+              <div className="current-recording-display">
+                <div className="rec-card recording-active">
+                  <div className="rec-footer">
+                    <div className="rec-time">
+                      {new Date().toLocaleDateString('de-DE').replace(/\//g, '.') + ' - ' + new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + ' h'}
+                    </div>
+                    <div className="rec-play-btn recording-dot-container">
+                      <span className="recording-dot-pulse"></span>
+                    </div>
+                    <span className="rec-duration recording-timer">
+                      {formatDuration(recordingTime)}
+                    </span>
+                    <span className="rec-text-preview">Aufnahme läuft...</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1261,7 +1271,19 @@ export default function HomePage() {
           position: absolute;
           bottom: 0;
           left: 0;
-          flex-shrink: 0; 
+          flex-shrink: 0;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        
+        .current-recording-display {
+          animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        
+        @keyframes slideIn {
+          from { opacity: 0; transform: translateX(-10px); }
+          to { opacity: 1; transform: translateX(0); }
         }
         .record-toggle { 
           width: 40px; height: 40px; border-radius: 50%; border: 3px solid #333; 
