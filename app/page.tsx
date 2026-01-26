@@ -93,6 +93,7 @@ export default function HomePage() {
   const [enrichingId, setEnrichingId] = useState<string | null>(null);
   const [isModelAvailable, setIsModelAvailable] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
+  const [isTauriMode, setIsTauriMode] = useState<boolean | null>(null); // null = not yet determined
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -101,12 +102,13 @@ export default function HomePage() {
 
   // Debug: Log component mount
   useEffect(() => {
-    console.log("HomePage component mounted, isTauri:", isTauri(), "isInitializing:", true);
-  }, []);
+    console.log("HomePage component mounted, isTauri:", isTauri(), "isInitializing:", true, "isTauriMode:", isTauriMode);
+  }, [isTauriMode]);
 
   // Initialize Worker for Browser Mode
   useEffect(() => {
-    if (isTauri()) return;
+    if (isTauriMode === true) return; // Skip if in Tauri mode
+    if (isTauriMode === null) return; // Wait until mode is determined
 
     if (!workerRef.current) {
       // Create worker
@@ -146,11 +148,11 @@ export default function HomePage() {
     return () => {
       workerRef.current?.terminate();
     };
-  }, []);
+  }, [isTauriMode]);
 
   // Listen for model ready/failed events from backend
   useEffect(() => {
-    if (!isTauri()) return;
+    if (isTauriMode !== true) return;
     
     const setupModelListeners = async () => {
       const unlistenReady = await (window as any).__TAURI__.event.listen(
@@ -191,11 +193,11 @@ export default function HomePage() {
     };
     
     setupModelListeners();
-  }, []);
+  }, [isTauriMode]);
 
   // Listen for enriched result from Rust (Tauri only)
   useEffect(() => {
-    if (!isTauri()) return;
+    if (isTauriMode !== true) return;
     // ... existing Tauri listeners ...
     const unlistenTrans = (window as any).__TAURI__.event.listen(
       "transcription_ready",
@@ -237,7 +239,7 @@ export default function HomePage() {
       unlistenEnriched.then((f: any) => f());
       unlistenFailed.then((f: any) => f());
     };
-  }, []);
+  }, [isTauriMode]);
 
   // Load existing recordings on mount and sort by timestamp
   useEffect(() => {
@@ -260,6 +262,10 @@ export default function HomePage() {
     
     const initialize = async () => {
       const hasTauri = await waitForTauri();
+      
+      // Set the Tauri mode state
+      setIsTauriMode(hasTauri);
+      debugLog(`Tauri mode set to: ${hasTauri}`);
       
       if (!hasTauri) {
         // In browser mode, skip initialization
@@ -358,7 +364,7 @@ export default function HomePage() {
         const dateStr = now.toLocaleDateString('de-DE').replace(/\//g, '.');
         const timeStr = now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + ' h';
 
-        if (isTauri()) {
+        if (isTauriMode) {
           try {
             debugLog(`Attempting to save recording with ${samples.length} samples`);
             debugLog(`Samples array first 10: ${Array.from(samples).slice(0, 10)}`);
@@ -445,7 +451,7 @@ export default function HomePage() {
         setErrorMessage("Fehler beim Zugriff auf das Mikrofon:\n\n" + (err.message || "Unbekannter Fehler") + "\n\nBitte überprüfen Sie die Mikrofoneinstellungen in Ihrem System.");
       }
     }
-  }, []);
+  }, [isTauriMode]);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording) {
@@ -465,7 +471,7 @@ export default function HomePage() {
 
   // Hotkey listener
   useEffect(() => {
-    if (!isTauri()) return;
+    if (isTauriMode !== true) return;
 
     const handleHotkey = () => {
       console.log("Hotkey triggered! isRecording:", isRecording);
@@ -497,7 +503,7 @@ export default function HomePage() {
         unlistenFn();
       }
     };
-  }, [isRecording, startRecording, stopRecording]);
+  }, [isRecording, startRecording, stopRecording, isTauriMode]);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -506,7 +512,7 @@ export default function HomePage() {
   };
 
   const reEnrichWithPrompt = async (id: string) => {
-    if (!isTauri()) return;
+    if (isTauriMode !== true) return;
     
     setEnrichingId(id);
     try {
@@ -532,7 +538,7 @@ export default function HomePage() {
       setPlaybackProgress(0);
     }
 
-    if (isTauri()) {
+    if (isTauriMode) {
       try {
         await invoke("delete_recording", { id });
       } catch (err) {
@@ -558,7 +564,7 @@ export default function HomePage() {
       let blob = audioBlobs.current.get(id);
       console.log("Playing recording:", id, "Blob in memory:", !!blob);
 
-      if (!blob && isTauri()) {
+      if (!blob && isTauriMode) {
         // Fetch from Rust if not in memory
         console.log("Fetching audio from Rust backend...");
         const audioData = await invoke("get_recording_audio", { id }) as number[];
@@ -684,7 +690,7 @@ export default function HomePage() {
       <div className="main-content">
 
         {/* Prompt Template Selector */}
-        {isTauri() && promptTemplates.length > 0 && (
+        {isTauriMode && promptTemplates.length > 0 && (
           <div className="prompt-selector">
             <label htmlFor="prompt-select" className="prompt-label">KI-Stil:</label>
             <select 
@@ -775,7 +781,7 @@ export default function HomePage() {
                         </button>
                         
                         {/* Prompt Selector Dropdown */}
-                        {isTauri() && promptTemplates.length > 0 && (
+                        {isTauriMode && promptTemplates.length > 0 && (
                           <select 
                             value={selectedPrompt} 
                             onChange={(e) => setSelectedPrompt(e.target.value)}
