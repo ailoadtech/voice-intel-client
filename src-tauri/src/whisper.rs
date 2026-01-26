@@ -202,6 +202,14 @@ fn is_valid_transcription(text: &str) -> bool {
         "copyright",
         "www.",
         "http",
+        "vielen dank",
+        "danke fürs zuschauen",
+        "danke für ihre aufmerksamkeit",
+        "bis zum nächsten mal",
+        "tschüss",
+        "auf wiedersehen",
+        "subscribe",
+        "like and subscribe",
     ];
     
     // Prüfe auf Halluzinationen
@@ -225,7 +233,57 @@ fn is_valid_transcription(text: &str) -> bool {
         return false;
     }
     
+    // Prüfe auf repetitive Muster (Whisper wiederholt oft denselben Text)
+    if has_repetitive_pattern(text) {
+        return false;
+    }
+    
     true
+}
+
+// Erkennt repetitive Muster, die auf Halluzinationen hindeuten
+fn has_repetitive_pattern(text: &str) -> bool {
+    let words: Vec<&str> = text.split_whitespace().collect();
+    
+    // Zu wenige Wörter für Musteranalyse
+    if words.len() < 4 {
+        return false;
+    }
+    
+    // Prüfe auf identische aufeinanderfolgende Wörter (mehr als 2x)
+    let mut consecutive_count = 1;
+    for i in 1..words.len() {
+        if words[i].to_lowercase() == words[i-1].to_lowercase() {
+            consecutive_count += 1;
+            if consecutive_count >= 3 {
+                return true;
+            }
+        } else {
+            consecutive_count = 1;
+        }
+    }
+    
+    // Prüfe auf wiederholte Phrasen (2-3 Wörter)
+    for phrase_len in 2..=3 {
+        if words.len() < phrase_len * 2 {
+            continue;
+        }
+        
+        for i in 0..=(words.len() - phrase_len * 2) {
+            let phrase1 = &words[i..i+phrase_len];
+            let phrase2 = &words[i+phrase_len..i+phrase_len*2];
+            
+            // Vergleiche Phrasen (case-insensitive)
+            let matches = phrase1.iter().zip(phrase2.iter())
+                .all(|(w1, w2)| w1.to_lowercase() == w2.to_lowercase());
+            
+            if matches {
+                return true;
+            }
+        }
+    }
+    
+    false
 }
 
 // Interne Logik zur Verarbeitung der Audiodatei mit dem Whisper-Modell.

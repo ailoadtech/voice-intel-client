@@ -114,6 +114,8 @@ export default function HomePage() {
   // Debug: Log component mount
   useEffect(() => {
     console.log("HomePage component mounted, isTauri:", isTauri(), "isInitializing:", true, "isTauriMode:", isTauriMode);
+    console.log("window.__TAURI__ at mount:", typeof (window as any).__TAURI__);
+    console.log("window location:", window.location.href);
   }, [isTauriMode]);
 
   // Initialize Worker for Browser Mode
@@ -169,10 +171,10 @@ export default function HomePage() {
       const unlistenReady = await (window as any).__TAURI__.event.listen(
         "model_ready",
         () => {
-          debugLog("Model ready event received");
+          debugLog("Model ready event received - model download complete");
           setIsModelAvailable(true);
           setIsModelLoading(false);
-          setIsInitializing(false); // Hide splash screen when model is ready
+          setIsInitializing(false); // Hide splash screen only after model is fully ready
         }
       );
       
@@ -190,7 +192,7 @@ export default function HomePage() {
       const unlistenChecking = await (window as any).__TAURI__.event.listen(
         "model_checking",
         () => {
-          debugLog("Model checking event received - showing splash screen");
+          debugLog("Model checking event received - keeping splash screen visible");
           setIsModelLoading(true);
           setIsInitializing(true); // Keep splash screen visible during download
         }
@@ -259,19 +261,30 @@ export default function HomePage() {
     // Wait for Tauri to be available
     const waitForTauri = async () => {
       let attempts = 0;
-      while (attempts < 10) {
+      const maxAttempts = 50; // Increased from 10 to 50 (5 seconds total)
+      while (attempts < maxAttempts) {
         if ((window as any).__TAURI__) {
-          debugLog(`Tauri API detected after ${attempts} attempts`);
+          debugLog(`Tauri API detected after ${attempts} attempts (${attempts * 100}ms)`);
           return true;
         }
         await new Promise(resolve => setTimeout(resolve, 100));
         attempts++;
+        
+        // Log every 10 attempts
+        if (attempts % 10 === 0) {
+          debugLog(`Still waiting for Tauri API... attempt ${attempts}/${maxAttempts}`);
+        }
       }
-      debugLog("Tauri API not detected after 10 attempts - assuming browser mode");
+      debugLog(`Tauri API not detected after ${maxAttempts} attempts (${maxAttempts * 100}ms) - assuming browser mode`);
       return false;
     };
     
     const initialize = async () => {
+      debugLog(`=== INITIALIZATION START ===`);
+      debugLog(`window.location.protocol: ${window.location.protocol}`);
+      debugLog(`window.location.href: ${window.location.href}`);
+      debugLog(`window.__TAURI__ initial: ${typeof (window as any).__TAURI__}`);
+      
       const hasTauri = await waitForTauri();
       
       debugLog(`=== TAURI DETECTION RESULT ===`);
@@ -294,6 +307,8 @@ export default function HomePage() {
       
       // Model check happens automatically in backend on startup
       // Backend will emit model_checking event if download needed
+      // Keep splash screen visible until model_ready event is received
+      debugLog("Waiting for model_ready event before hiding splash screen");
 
       const loadExistingRecordings = async () => {
       try {
