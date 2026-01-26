@@ -20,6 +20,7 @@ pub fn get_app_dir() -> PathBuf {
 
 // Speichert Audiosamples als WAV-Datei mit einem Unix-Zeitstempel im Verzeichnis 'recordings'.
 pub fn save_recording(samples: &[i16]) -> Result<String, Box<dyn std::error::Error>> {
+    println!("=== SAVE_RECORDING START ===");
     println!("save_recording called with {} samples", samples.len());
     
     let timestamp = std::time::SystemTime::now()
@@ -30,8 +31,8 @@ pub fn save_recording(samples: &[i16]) -> Result<String, Box<dyn std::error::Err
     let app_dir = get_app_dir();
     let recordings_dir = app_dir.join("recordings");
     
-    println!("App directory: {:?}", app_dir);
-    println!("Recordings directory: {:?}", recordings_dir);
+    println!("App directory (absolute path): {:?}", app_dir);
+    println!("Recordings directory (absolute path): {:?}", recordings_dir);
     
     // Ensure recordings directory exists
     if !recordings_dir.exists() {
@@ -39,11 +40,12 @@ pub fn save_recording(samples: &[i16]) -> Result<String, Box<dyn std::error::Err
         fs::create_dir_all(&recordings_dir)?;
         println!("Created recordings directory at: {:?}", recordings_dir);
     } else {
-        println!("Recordings directory already exists");
+        println!("Recordings directory already exists at: {:?}", recordings_dir);
     }
     
     let path = recordings_dir.join(format!("{}.rec", timestamp));
-    println!("Saving recording to: {:?}", path);
+    println!("Full file path for recording: {:?}", path);
+    println!("Timestamp ID: {}", timestamp);
     
     let spec = WavSpec {
         channels: 1,
@@ -60,15 +62,20 @@ pub fn save_recording(samples: &[i16]) -> Result<String, Box<dyn std::error::Err
     println!("All {} samples written", samples.len());
     
     writer.finalize()?;
-    println!("Recording finalized and saved successfully: {}", timestamp);
+    println!("Recording finalized and saved successfully");
     
     // Verify file was created
     if path.exists() {
         let metadata = std::fs::metadata(&path)?;
-        println!("File verified - size: {} bytes", metadata.len());
+        println!("✓ FILE VERIFIED - EXISTS ON DISK");
+        println!("  Path: {:?}", path);
+        println!("  Size: {} bytes", metadata.len());
+        println!("  Timestamp ID returned: {}", timestamp);
     } else {
-        println!("WARNING: File was not created at {:?}", path);
+        println!("✗ WARNING: File was NOT created at {:?}", path);
+        return Err("File verification failed - file does not exist after write".into());
     }
     
+    println!("=== SAVE_RECORDING END ===");
     Ok(timestamp)
 }

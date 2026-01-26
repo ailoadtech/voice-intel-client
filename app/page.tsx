@@ -583,13 +583,20 @@ export default function HomePage() {
   };
 
   const playRecording = async (id: string) => {
+    console.log("=== PLAY_RECORDING START ===");
+    console.log("Requested ID:", id);
+    console.log("Currently playing ID:", playingId);
+    console.log("isTauriMode:", isTauriMode);
+    
     if (playingId === id) {
+      console.log("Stopping current playback");
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
       }
       setPlayingId(null);
       setPlaybackProgress(0);
+      console.log("=== PLAY_RECORDING END (stopped) ===");
       return;
     }
 
@@ -597,37 +604,60 @@ export default function HomePage() {
 
     try {
       let blob = audioBlobs.current.get(id);
-      console.log("Playing recording:", id, "Blob in memory:", !!blob);
+      console.log("Checking in-memory blob for ID:", id);
+      console.log("  Blob exists in memory:", !!blob);
+      if (blob) {
+        console.log("  Blob size:", blob.size, "bytes");
+        console.log("  Blob type:", blob.type);
+      }
 
       if (!blob && isTauriMode) {
         // Fetch from Rust if not in memory
-        console.log("Fetching audio from Rust backend...");
-        const audioData = await invoke("get_recording_audio", { id }) as number[];
-        console.log("Received audio data, length:", audioData.length);
+        console.log("Blob not in memory, fetching from Rust backend...");
+        console.log("  Calling invoke('get_recording_audio', { id:", id, "})");
         
-        // Create proper WAV blob from the byte array
-        const uint8Array = new Uint8Array(audioData);
-        blob = new Blob([uint8Array], { type: "audio/wav" });
-        audioBlobs.current.set(id, blob);
-        
-        console.log("Created blob, size:", blob.size, "type:", blob.type);
-        
-        // Verify WAV header
-        if (uint8Array.length >= 4) {
-          const header = String.fromCharCode(uint8Array[0], uint8Array[1], uint8Array[2], uint8Array[3]);
-          console.log("WAV header:", header, "Valid:", header === "RIFF");
+        try {
+          const audioData = await invoke("get_recording_audio", { id }) as number[];
+          console.log("✓ Received audio data from backend");
+          console.log("  Data length:", audioData.length, "bytes");
+          
+          // Create proper WAV blob from the byte array
+          const uint8Array = new Uint8Array(audioData);
+          blob = new Blob([uint8Array], { type: "audio/wav" });
+          audioBlobs.current.set(id, blob);
+          
+          console.log("✓ Created blob from backend data");
+          console.log("  Blob size:", blob.size, "bytes");
+          console.log("  Blob type:", blob.type);
+          
+          // Verify WAV header
+          if (uint8Array.length >= 4) {
+            const header = String.fromCharCode(uint8Array[0], uint8Array[1], uint8Array[2], uint8Array[3]);
+            console.log("  WAV header:", header);
+            console.log("  Valid WAV:", header === "RIFF");
+          }
+        } catch (fetchErr) {
+          console.error("✗ ERROR fetching audio from backend:", fetchErr);
+          console.error("  Error details:", JSON.stringify(fetchErr));
+          throw fetchErr;
         }
       }
 
       if (blob) {
-        console.log("Creating audio URL from blob, size:", blob.size);
+        console.log("Creating audio element from blob");
+        console.log("  Blob size:", blob.size, "bytes");
         const url = URL.createObjectURL(blob);
+        console.log("  Created object URL:", url);
+        
         if (audioRef.current) {
+          console.log("  Pausing existing audio");
           audioRef.current.pause();
         }
+        
         const audio = new Audio(url);
         audioRef.current = audio;
         setPlayingId(id);
+        console.log("  Audio element created");
 
         audio.ontimeupdate = () => {
           if (audio.duration) {
@@ -636,14 +666,16 @@ export default function HomePage() {
         };
 
         audio.onended = () => {
+          console.log("Audio playback ended");
           setPlayingId(null);
           setPlaybackProgress(0);
           URL.revokeObjectURL(url);
         };
 
         audio.onerror = (e) => {
-          console.error("Audio playback error:", e);
-          console.error("Audio error code:", audio.error?.code, "message:", audio.error?.message);
+          console.error("✗ Audio playback error:", e);
+          console.error("  Error code:", audio.error?.code);
+          console.error("  Error message:", audio.error?.message);
           setPlayingId(null);
           setPlaybackProgress(0);
           URL.revokeObjectURL(url);
@@ -652,27 +684,39 @@ export default function HomePage() {
 
         // Add canplay listener to ensure audio is ready
         audio.oncanplay = () => {
-          console.log("Audio is ready to play, duration:", audio.duration);
+          console.log("✓ Audio is ready to play");
+          console.log("  Duration:", audio.duration, "seconds");
         };
 
         try {
+          console.log("Attempting to play audio...");
           await audio.play();
-          console.log("Audio playback started");
+          console.log("✓ Audio playback started successfully");
+          console.log("=== PLAY_RECORDING END (playing) ===");
         } catch (playErr) {
-          console.error("Play error:", playErr);
+          console.error("✗ Play error:", playErr);
+          console.error("  Error details:", JSON.stringify(playErr));
           setPlayingId(null);
           setPlaybackProgress(0);
           URL.revokeObjectURL(url);
           setErrorMessage(`Wiedergabefehler: ${(playErr as any).message || "Kann nicht abspielen"}`);
+          console.log("=== PLAY_RECORDING END (play failed) ===");
         }
       } else {
-        console.error("Audio data not found for id:", id);
+        console.error("✗ ERROR: No blob available for playback");
+        console.error("  ID:", id);
+        console.error("  isTauriMode:", isTauriMode);
+        console.error("  Blobs in memory:", Array.from(audioBlobs.current.keys()));
         setErrorMessage("Audio-Datei nicht gefunden");
+        console.log("=== PLAY_RECORDING END (no blob) ===");
       }
     } catch (err) {
-      console.error("Playback error:", err);
+      console.error("✗ Playback error:", err);
+      console.error("  Error type:", typeof err);
+      console.error("  Error details:", JSON.stringify(err));
       const errorMsg = (err as any).message || (err as any).toString();
       setErrorMessage(`Wiedergabefehler: ${errorMsg}`);
+      console.log("=== PLAY_RECORDING END (error) ===");
     }
   };
 

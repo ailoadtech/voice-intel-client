@@ -78,19 +78,59 @@ async fn log_frontend(message: String) -> Result<(), String> {
 
 #[tauri::command]
 async fn get_recording_audio(id: String) -> Result<Vec<u8>, String> {
+    println!("=== GET_RECORDING_AUDIO START ===");
+    println!("Requested recording ID: {}", id);
+    
     let app_dir = get_app_dir();
-    let processed_path = app_dir.join("recordings").join(format!("{}.processed", id));
-    let rec_path = app_dir.join("recordings").join(format!("{}.rec", id));
+    println!("App directory: {:?}", app_dir);
+    
+    let recordings_dir = app_dir.join("recordings");
+    println!("Recordings directory: {:?}", recordings_dir);
+    
+    let processed_path = recordings_dir.join(format!("{}.processed", id));
+    let rec_path = recordings_dir.join(format!("{}.rec", id));
+    
+    println!("Checking for processed file: {:?}", processed_path);
+    println!("  Exists: {}", processed_path.exists());
+    
+    println!("Checking for rec file: {:?}", rec_path);
+    println!("  Exists: {}", rec_path.exists());
 
     let path = if processed_path.exists() {
+        println!("Using processed file: {:?}", processed_path);
         processed_path
     } else if rec_path.exists() {
+        println!("Using rec file: {:?}", rec_path);
         rec_path
     } else {
-        return Err("Recording not found".to_string());
+        println!("✗ ERROR: Recording not found!");
+        println!("  Searched for ID: {}", id);
+        println!("  In directory: {:?}", recordings_dir);
+        
+        // List all files in recordings directory for debugging
+        if let Ok(entries) = std::fs::read_dir(&recordings_dir) {
+            println!("  Files in recordings directory:");
+            for entry in entries.filter_map(|e| e.ok()) {
+                println!("    - {:?}", entry.file_name());
+            }
+        }
+        
+        return Err(format!("Recording not found: {}", id));
     };
 
-    tokio::fs::read(path).await.map_err(|e| e.to_string())
+    println!("Reading file: {:?}", path);
+    match tokio::fs::read(&path).await {
+        Ok(data) => {
+            println!("✓ Successfully read {} bytes from file", data.len());
+            println!("=== GET_RECORDING_AUDIO END ===");
+            Ok(data)
+        }
+        Err(e) => {
+            println!("✗ ERROR reading file: {}", e);
+            println!("=== GET_RECORDING_AUDIO END ===");
+            Err(e.to_string())
+        }
+    }
 }
 
 #[tauri::command]
