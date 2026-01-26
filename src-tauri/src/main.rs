@@ -1,5 +1,5 @@
-// Disable console window on Windows in release builds
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+// Enable console window temporarily for debugging
+// #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod audio;
 mod whisper;
@@ -320,8 +320,31 @@ fn main() {
                 }).await {
                     Ok(Ok(())) => {
                         logger::Logger::log("Model check completed successfully on startup");
-                        // Emit event to frontend that model is ready
-                        let _ = app_handle_model.emit("model_ready", ());
+                        
+                        // Double-check that the model file actually exists before emitting ready event
+                        let model_path = whisper::get_model_path();
+                        if model_path.exists() {
+                            logger::Logger::log(&format!("Model file verified at: {:?}", model_path));
+                            
+                            // Additional verification: check file size
+                            if let Ok(metadata) = std::fs::metadata(&model_path) {
+                                let size_mb = metadata.len() / 1_048_576;
+                                logger::Logger::log(&format!("Model file size: {} MB", size_mb));
+                                
+                                if size_mb < 100 {
+                                    logger::Logger::log_error("Model verification", "Model file is too small, may be corrupted");
+                                    let _ = app_handle_model.emit("model_failed", "Model file is too small or corrupted".to_string());
+                                    return;
+                                }
+                            }
+                            
+                            // Emit event to frontend that model is ready
+                            logger::Logger::log("Emitting model_ready event to frontend");
+                            let _ = app_handle_model.emit("model_ready", ());
+                        } else {
+                            logger::Logger::log_error("Model verification", "Model file does not exist after ensure_model completed");
+                            let _ = app_handle_model.emit("model_failed", "Model file not found after download".to_string());
+                        }
                     }
                     Ok(Err(e)) => {
                         logger::Logger::log_error("startup model check", &e);
