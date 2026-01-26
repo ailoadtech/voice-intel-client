@@ -69,6 +69,13 @@ async fn save_and_queue_recording(samples: Vec<i16>) -> Result<String, String> {
     }
 }
 
+// Log frontend messages to the Rust log file
+#[tauri::command]
+async fn log_frontend(message: String) -> Result<(), String> {
+    logger::Logger::log(&format!("[FRONTEND] {}", message));
+    Ok(())
+}
+
 #[tauri::command]
 async fn get_recording_audio(id: String) -> Result<Vec<u8>, String> {
     let app_dir = get_app_dir();
@@ -391,7 +398,7 @@ fn main() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![save_and_queue_recording, get_recording_audio, delete_recording, check_model, get_all_recordings, get_prompt_templates, re_enrich_with_prompt])
+        .invoke_handler(tauri::generate_handler![save_and_queue_recording, get_recording_audio, delete_recording, check_model, get_all_recordings, get_prompt_templates, re_enrich_with_prompt, log_frontend])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

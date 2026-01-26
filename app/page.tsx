@@ -12,6 +12,17 @@ const debugLog = (message: string) => {
       (window as any).__DEBUG_LOGS__ = [];
     }
     (window as any).__DEBUG_LOGS__.push(`${new Date().toISOString()}: ${message}`);
+    
+    // Also try to log to Rust backend if available
+    try {
+      if ((window as any).__TAURI__) {
+        invoke("log_frontend", { message }).catch(() => {
+          // Ignore errors
+        });
+      }
+    } catch (e) {
+      // Ignore errors
+    }
   }
 };
 
@@ -263,6 +274,11 @@ export default function HomePage() {
     const initialize = async () => {
       const hasTauri = await waitForTauri();
       
+      debugLog(`=== TAURI DETECTION RESULT ===`);
+      debugLog(`hasTauri: ${hasTauri}`);
+      debugLog(`window.__TAURI__: ${typeof (window as any).__TAURI__}`);
+      debugLog(`Setting isTauriMode to: ${hasTauri}`);
+      
       // Set the Tauri mode state
       setIsTauriMode(hasTauri);
       debugLog(`Tauri mode set to: ${hasTauri}`);
@@ -369,6 +385,9 @@ export default function HomePage() {
           try {
             debugLog(`Attempting to save recording with ${samples.length} samples`);
             debugLog(`Samples array first 10: ${Array.from(samples).slice(0, 10)}`);
+            debugLog(`isTauriMode state: ${isTauriMode}`);
+            debugLog(`window.__TAURI__ exists: ${!!(window as any).__TAURI__}`);
+            
             const samplesArray = Array.from(samples);
             debugLog(`Converted samples to array, length: ${samplesArray.length}`);
             
@@ -676,17 +695,6 @@ export default function HomePage() {
       {/* Main UI - only show after initialization */}
       {!isInitializing && (
         <>
-          {/* Upper Display Area */}
-          <div className={`display-panel ${activeResult ? 'visible' : 'hidden'}`}>
-            <div className="panel-content">
-              <button onClick={() => setActiveResult(null)} className="panel-close">✕</button>
-          <h2 className="panel-title">{activeResult?.title || "Transkription"}</h2>
-          <div className="panel-body">{activeResult?.text}</div>
-        </div>
-      </div>
-
-
-
       {/* Main Content Area */}
       <div className="main-content">
 
@@ -870,6 +878,15 @@ export default function HomePage() {
           </div>
         </div>
       </div>
+
+          {/* Bottom Display Area */}
+          <div className={`display-panel ${activeResult ? 'visible' : 'hidden'}`}>
+            <div className="panel-content">
+              <button onClick={() => setActiveResult(null)} className="panel-close">✕</button>
+          <h2 className="panel-title">{activeResult?.title || "Transkription"}</h2>
+          <div className="panel-body">{activeResult?.text}</div>
+        </div>
+      </div>
         </>
       )}
 
@@ -932,19 +949,20 @@ export default function HomePage() {
           background: #444;
         }
 
-        /* Top Panel */
+        /* Bottom Panel */
         .display-panel {
           width: 550px;
           height: 200px;
           background: #1a1d23;
           border-radius: 24px;
           border: 1px solid #2d323b;
-          margin-bottom: 20px;
+          margin-top: 20px;
           margin-left: 0;
           margin-right: auto;
           transition: all 0.4s ease;
           position: relative;
           flex-shrink: 0;
+          order: 2; /* Move to bottom */
         }
         .display-panel.hidden { 
           opacity: 0; 
@@ -974,7 +992,7 @@ export default function HomePage() {
           padding-bottom: 20px;
         }
 
-        /* Controls and History - Bottom Layout */
+        /* Controls and History - Top Layout */
         .controls-and-history {
           display: flex;
           flex-direction: column;
@@ -983,6 +1001,7 @@ export default function HomePage() {
           flex: 1;
           min-height: 0;
           position: relative;
+          order: 1; /* Keep at top */
         }
 
         /* Prompt Selector */
@@ -1134,7 +1153,7 @@ export default function HomePage() {
         .rec-play-btn.playing:hover { color: #4dabf7; transform: scale(1.1); }
         .rec-delete-btn:hover { color: #fa5252; transform: scale(1.1); }
         .rec-duration { font-family: monospace; font-size: 12px; color: #666; flex-shrink: 0; }
-        .rec-text-preview { flex: 1; font-size: 13px; color: #777; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; text-align: left; }
+        .rec-text-preview { flex: 1; font-size: 13px; color: #777; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; max-width: 200px; text-align: left; }
         
         /* Inline action buttons inside rec-card */
         .rec-action-btn-inline { 
