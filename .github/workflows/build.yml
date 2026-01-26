@@ -47,9 +47,8 @@ jobs:
         with:
           workspaces: "src-tauri -> target"
 
-      - name: Build Windows EXE
-        run: cargo build --release
-        working-directory: src-tauri
+      - name: Build Windows EXE with Tauri CLI
+        run: npm run tauri build
 
       - name: Clean release folder
         run: |
@@ -61,7 +60,7 @@ jobs:
           mkdir release
           mkdir release\models
           mkdir release\recordings
-          copy src-tauri\target\release\voice-intel-app.exe release\
+          copy src-tauri\target\release\bundle\msi\voice-intel-app.exe release\ 2>nul || copy src-tauri\target\release\voice-intel-app.exe release\
           echo { > release\config.json
           echo   "llm": { >> release\config.json
           echo     "enabled": true, >> release\config.json
