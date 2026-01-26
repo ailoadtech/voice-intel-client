@@ -354,10 +354,13 @@ export default function HomePage() {
       };
 
       mediaRecorderRef.current.onstop = async () => {
+        console.log("=== MEDIARECORDER ONSTOP START ===");
         console.log("MediaRecorder stopped, processing audio...");
         const duration = Math.round((Date.now() - startTime) / 1000);
         console.log("Recording duration:", duration, "seconds");
         console.log("Audio chunks collected:", audioChunks.length);
+        console.log("isTauriMode:", isTauriMode);
+        console.log("window.__TAURI__:", typeof (window as any).__TAURI__);
         
         if (audioChunks.length === 0) {
           console.error("No audio chunks collected!");
@@ -396,7 +399,9 @@ export default function HomePage() {
         const dateStr = now.toLocaleDateString('de-DE').replace(/\//g, '.');
         const timeStr = now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + ' h';
 
+        console.log("Checking isTauriMode:", isTauriMode);
         if (isTauriMode) {
+          console.log("✓ TAURI MODE - Will save to backend");
           try {
             debugLog(`Attempting to save recording with ${samples.length} samples`);
             debugLog(`Samples array first 10: ${Array.from(samples).slice(0, 10)}`);
@@ -406,7 +411,9 @@ export default function HomePage() {
             const samplesArray = Array.from(samples);
             debugLog(`Converted samples to array, length: ${samplesArray.length}`);
             
+            console.log("Calling invoke('save_and_queue_recording')...");
             const id = await invoke("save_and_queue_recording", { samples: samplesArray }) as string;
+            console.log("✓ Backend returned ID:", id);
             debugLog(`Recording saved successfully with ID: ${id}`);
             
             audioBlobs.current.set(id, wavBlob); // Store the WAV blob for playback
@@ -429,6 +436,7 @@ export default function HomePage() {
             setStatus("Gespeichert");
             debugLog(`Recording saved with ID: ${id}`);
           } catch (e) {
+            console.error("✗ SAVE ERROR:", e);
             debugLog(`Save error: ${e}`);
             debugLog(`Error details: ${JSON.stringify(e)}`);
             console.error("Save error:", e);
@@ -437,6 +445,7 @@ export default function HomePage() {
             setErrorMessage("Fehler beim Speichern der Aufnahme: " + (e as any).toString());
           }
         } else {
+          console.log("✗ BROWSER MODE - Not saving to backend");
           debugLog("Not in Tauri mode - using browser mode");
           // Browser Mode: Use Worker
           const id = Date.now().toString();
