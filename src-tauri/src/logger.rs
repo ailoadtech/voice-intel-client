@@ -7,11 +7,13 @@ pub struct Logger;
 
 impl Logger {
     pub fn init() {
-        // Create log file in app directory
+        // Append to log file instead of replacing
         if let Ok(exe_path) = std::env::current_exe() {
             if let Some(exe_dir) = exe_path.parent() {
                 let log_path = exe_dir.join("voice-intel.log");
-                let _ = std::fs::write(&log_path, format!("=== Voice Intel Log Started ===\n"));
+                if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&log_path) {
+                    let _ = writeln!(file, "\n=== Voice Intel Log Started at {} ===", chrono::Local::now().format("%Y-%m-%d %H:%M:%S"));
+                }
             }
         }
     }

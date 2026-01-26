@@ -288,8 +288,19 @@ fn main() {
 
             let app_handle = app.handle().clone();
             
+            // Check if model exists first, only show splash if downloading
+            logger::Logger::log("Checking if model exists...");
+            let model_path = whisper::get_model_path();
+            let model_exists = model_path.exists();
+            logger::Logger::log(&format!("Model exists: {}", model_exists));
+            
+            if !model_exists {
+                // Model doesn't exist, emit event to show splash screen
+                logger::Logger::log("Model not found, will download - emitting model_checking event");
+                let _ = app.handle().emit("model_checking", ());
+            }
+            
             // Check and download model on startup
-            logger::Logger::log("Checking model on startup...");
             let app_handle_model = app.handle().clone();
             async_runtime::spawn(async move {
                 logger::Logger::log("Starting model check in background task");

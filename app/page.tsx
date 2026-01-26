@@ -92,9 +92,7 @@ export default function HomePage() {
   const [selectedPrompt, setSelectedPrompt] = useState<string>("Prompt 1");
   const [enrichingId, setEnrichingId] = useState<string | null>(null);
   const [isModelAvailable, setIsModelAvailable] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(true);
-  const [downloadProgress, setDownloadProgress] = useState(0);
-  const abortDownloadRef = useRef(false);
+  const [isInitializing, setIsInitializing] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -158,7 +156,7 @@ export default function HomePage() {
       const unlistenReady = await (window as any).__TAURI__.event.listen(
         "model_ready",
         () => {
-          console.log("Model ready event received");
+          debugLog("Model ready event received");
           setIsModelAvailable(true);
           setIsModelLoading(false);
           setIsInitializing(false);
@@ -168,7 +166,7 @@ export default function HomePage() {
       const unlistenFailed = await (window as any).__TAURI__.event.listen(
         "model_failed",
         (event: any) => {
-          console.log("Model failed event received:", event.payload);
+          debugLog(`Model failed event received: ${event.payload}`);
           setIsModelAvailable(false);
           setIsModelLoading(false);
           setIsInitializing(false);
@@ -176,9 +174,19 @@ export default function HomePage() {
         }
       );
       
+      const unlistenChecking = await (window as any).__TAURI__.event.listen(
+        "model_checking",
+        () => {
+          debugLog("Model checking event received - showing splash screen");
+          setIsModelLoading(true);
+          setIsInitializing(true);
+        }
+      );
+      
       return () => {
         unlistenReady();
         unlistenFailed();
+        unlistenChecking();
       };
     };
     
@@ -233,20 +241,20 @@ export default function HomePage() {
 
   // Load existing recordings on mount and sort by timestamp
   useEffect(() => {
-    console.log("Initialization useEffect running, isTauri:", isTauri());
+    debugLog(`Initialization useEffect running, isTauri: ${isTauri()}`);
     
     // Wait for Tauri to be available
     const waitForTauri = async () => {
       let attempts = 0;
       while (attempts < 10) {
         if ((window as any).__TAURI__) {
-          console.log("Tauri API detected after", attempts, "attempts");
+          debugLog(`Tauri API detected after ${attempts} attempts`);
           return true;
         }
         await new Promise(resolve => setTimeout(resolve, 100));
         attempts++;
       }
-      console.log("Tauri API not detected after 10 attempts - assuming browser mode");
+      debugLog("Tauri API not detected after 10 attempts - assuming browser mode");
       return false;
     };
     
@@ -255,17 +263,14 @@ export default function HomePage() {
       
       if (!hasTauri) {
         // In browser mode, skip initialization
-        console.log("Browser mode detected, skipping initialization");
-        setIsInitializing(false);
+        debugLog("Browser mode detected, skipping initialization");
         return;
       }
 
-      console.log("Tauri mode detected, starting initialization...");
+      debugLog("Tauri mode detected, loading data...");
       
       // Model check happens automatically in backend on startup
-      // Just show splash screen and wait for model_ready/model_failed events
-      setIsModelLoading(true);
-      setIsInitializing(true);
+      // Backend will emit model_checking event if download needed
 
       const loadExistingRecordings = async () => {
       try {
@@ -655,25 +660,8 @@ export default function HomePage() {
             <div className="loading-text">Whisper-Modell wird geladen...</div>
             <div className="loading-subtext">Dies kann beim ersten Start einige Minuten dauern (~500 MB)</div>
             
-            {/* Progress bar - simple line without percentage */}
-            <div className="download-progress-container">
-              <div className="download-progress-bar" style={{ width: `${downloadProgress}%` }}></div>
-            </div>
-            
-            {/* Cancel button */}
-            <button 
-              onClick={() => {
-                console.log("Download cancelled by button click");
-                abortDownloadRef.current = true;
-                setIsModelLoading(false);
-                setIsInitializing(false);
-                setDownloadProgress(0);
-                setIsModelAvailable(false);
-              }}
-              className="cancel-download-btn"
-            >
-              Abbrechen
-            </button>
+            {/* Simple loading spinner instead of progress bar */}
+            <div className="loading-spinner"></div>
           </div>
         </div>
       )}
@@ -1321,40 +1309,14 @@ export default function HomePage() {
         .loading-text { font-size: 22px; font-weight: 700; color: #4dabf7; margin-bottom: 12px; }
         .loading-subtext { font-size: 14px; color: #555; margin-bottom: 25px; }
         
-        .download-progress-container {
-          width: 100%;
-          max-width: 400px;
-          height: 4px;
-          background: #1a1d23;
-          border-radius: 2px;
-          overflow: hidden;
+        .loading-spinner {
+          width: 40px;
+          height: 40px;
+          border: 4px solid #2a2d33;
+          border-top-color: #4dabf7;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
           margin: 0 auto;
-          border: 1px solid #2a2d33;
-        }
-        .download-progress-bar {
-          height: 100%;
-          background: #40c057;
-          transition: width 0.3s ease;
-          box-shadow: 0 0 8px rgba(64, 192, 87, 0.6);
-        }
-        
-        .cancel-download-btn {
-          margin-top: 20px;
-          background: #2d323b;
-          color: #e0e0e0;
-          border: 1px solid #3d424b;
-          padding: 10px 24px;
-          border-radius: 8px;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-        .cancel-download-btn:hover {
-          background: #3d424b;
-          border-color: #fa5252;
-          color: #fa5252;
-          transform: scale(1.05);
         }
 
         @keyframes spin {
