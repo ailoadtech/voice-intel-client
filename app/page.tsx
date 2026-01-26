@@ -116,6 +116,13 @@ export default function HomePage() {
     console.log("HomePage component mounted, isTauri:", isTauri(), "isInitializing:", true, "isTauriMode:", isTauriMode);
     console.log("window.__TAURI__ at mount:", typeof (window as any).__TAURI__);
     console.log("window location:", window.location.href);
+    
+    // Force log to backend immediately
+    if (typeof window !== "undefined" && (window as any).__TAURI__) {
+      invoke("log_frontend", { message: "=== HOMEPAGE COMPONENT MOUNTED ===" }).catch(e => {
+        console.error("Failed to log to backend:", e);
+      });
+    }
   }, [isTauriMode]);
 
   // Initialize Worker for Browser Mode
@@ -343,6 +350,11 @@ export default function HomePage() {
   }, []);
 
   const startRecording = useCallback(async () => {
+    // Log to backend immediately
+    if (typeof window !== "undefined" && (window as any).__TAURI__) {
+      await invoke("log_frontend", { message: "=== START_RECORDING CALLED ===" }).catch(() => {});
+    }
+    
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const audioChunks: Blob[] = [];
@@ -354,6 +366,12 @@ export default function HomePage() {
       };
 
       mediaRecorderRef.current.onstop = async () => {
+        // Log to backend immediately
+        if (typeof window !== "undefined" && (window as any).__TAURI__) {
+          await invoke("log_frontend", { message: "=== MEDIARECORDER ONSTOP TRIGGERED ===" }).catch(() => {});
+          await invoke("log_frontend", { message: `isTauriMode: ${isTauriMode}` }).catch(() => {});
+        }
+        
         console.log("=== MEDIARECORDER ONSTOP START ===");
         console.log("MediaRecorder stopped, processing audio...");
         const duration = Math.round((Date.now() - startTime) / 1000);
