@@ -92,7 +92,7 @@ export default function HomePage() {
   const [selectedPrompt, setSelectedPrompt] = useState<string>("Prompt 1");
   const [enrichingId, setEnrichingId] = useState<string | null>(null);
   const [isModelAvailable, setIsModelAvailable] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true); // Start as true to show splash screen
   const [isTauriMode, setIsTauriMode] = useState<boolean | null>(null); // null = not yet determined
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -161,7 +161,7 @@ export default function HomePage() {
           debugLog("Model ready event received");
           setIsModelAvailable(true);
           setIsModelLoading(false);
-          setIsInitializing(false);
+          setIsInitializing(false); // Hide splash screen when model is ready
         }
       );
       
@@ -171,7 +171,7 @@ export default function HomePage() {
           debugLog(`Model failed event received: ${event.payload}`);
           setIsModelAvailable(false);
           setIsModelLoading(false);
-          setIsInitializing(false);
+          setIsInitializing(false); // Hide splash screen on error
           setErrorMessage("Fehler beim Laden des Whisper-Modells: " + event.payload);
         }
       );
@@ -181,7 +181,7 @@ export default function HomePage() {
         () => {
           debugLog("Model checking event received - showing splash screen");
           setIsModelLoading(true);
-          setIsInitializing(true);
+          setIsInitializing(true); // Keep splash screen visible during download
         }
       );
       
@@ -268,8 +268,9 @@ export default function HomePage() {
       debugLog(`Tauri mode set to: ${hasTauri}`);
       
       if (!hasTauri) {
-        // In browser mode, skip initialization
+        // In browser mode, skip initialization and hide splash screen
         debugLog("Browser mode detected, skipping initialization");
+        setIsInitializing(false);
         return;
       }
 
