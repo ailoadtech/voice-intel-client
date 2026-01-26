@@ -305,6 +305,10 @@ fn main() {
                 // Model doesn't exist, emit event to show splash screen
                 logger::Logger::log("Model not found, will download - emitting model_checking event");
                 let _ = app.handle().emit("model_checking", ());
+            } else {
+                // Model already exists, emit model_ready immediately
+                logger::Logger::log("Model already exists - emitting model_ready event");
+                let _ = app.handle().emit("model_ready", ());
             }
             
             // Check and download model on startup
