@@ -101,21 +101,43 @@ pub fn ensure_model() -> Result<(), String> {
     
     Logger::log(&format!("Model saved successfully to: {:?}", model_path));
     
-    // Verify file was written
-    if model_path.exists() {
-        let metadata = fs::metadata(&model_path).map_err(|e| {
-            let err_msg = format!("Failed to read file metadata: {}", e);
-            Logger::log_error("File metadata", &err_msg);
-            err_msg
-        })?;
-        Logger::log_model_download_complete(&model_path, metadata.len());
-    } else {
+    // Verify file was written and is accessible
+    if !model_path.exists() {
         let err_msg = "File was not created!";
         Logger::log_error("File verification", err_msg);
         return Err(err_msg.to_string());
     }
     
-    Logger::log("=== MODEL CHECK END (download complete) ===");
+    // Get file metadata to verify size
+    let metadata = fs::metadata(&model_path).map_err(|e| {
+        let err_msg = format!("Failed to read file metadata: {}", e);
+        Logger::log_error("File metadata", &err_msg);
+        err_msg
+    })?;
+    
+    let file_size = metadata.len();
+    Logger::log(&format!("File size: {} bytes ({} MB)", file_size, file_size / 1_048_576));
+    
+    // Verify file size is reasonable (should be around 500 MB)
+    if file_size < 100_000_000 {
+        let err_msg = format!("Downloaded file is too small ({} bytes), download may be incomplete", file_size);
+        Logger::log_error("File size verification", &err_msg);
+        // Delete the incomplete file
+        let _ = fs::remove_file(&model_path);
+        return Err(err_msg);
+    }
+    
+    // Try to open the file to ensure it's readable
+    Logger::log("Verifying file is readable...");
+    let file = fs::File::open(&model_path).map_err(|e| {
+        let err_msg = format!("Failed to open model file for verification: {}", e);
+        Logger::log_error("File open verification", &err_msg);
+        err_msg
+    })?;
+    drop(file); // Close the file immediately
+    
+    Logger::log_model_download_complete(&model_path, file_size);
+    Logger::log("=== MODEL CHECK END (download complete and verified) ===");
     
     Ok(())
 }

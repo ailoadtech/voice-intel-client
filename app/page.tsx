@@ -804,6 +804,21 @@ export default function HomePage() {
                           <img src="/transkription-ai.png" alt="AI" />
                         </button>
                         
+                        <button
+                          onClick={() => reEnrichWithPrompt(rec.id)}
+                          className="rec-action-btn-inline"
+                          disabled={enrichingId === rec.id}
+                          title="Mit KI anreichern"
+                        >
+                          {enrichingId === rec.id ? (
+                            <div className="button-spinner-inline"></div>
+                          ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+                            </svg>
+                          )}
+                        </button>
+                        
                         {/* Prompt Selector Dropdown */}
                         {isTauriMode && promptTemplates.length > 0 && (
                           <select 
@@ -1101,7 +1116,7 @@ export default function HomePage() {
           overflow-y: hidden;
           padding: 0;
           margin: 0;
-          margin-left: 60px; /* Space for record button */
+          padding-bottom: 70px; /* Space for fixed record button at bottom */
         }
 
         .controls-bar {
@@ -1269,13 +1284,14 @@ export default function HomePage() {
         
         /* Record Button */
         .record-section { 
-          position: absolute;
-          bottom: 0;
-          left: 0;
+          position: fixed;
+          bottom: 20px;
+          left: 40px;
           flex-shrink: 0;
           display: flex;
           align-items: center;
           gap: 12px;
+          z-index: 100;
         }
         
         .current-recording-display {
