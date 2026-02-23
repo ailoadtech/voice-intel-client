@@ -2,23 +2,9 @@
 use std::fs;
 use std::path::PathBuf;
 use whisper_rs::{WhisperContext, WhisperContextParameters, FullParams, SamplingStrategy};
+use crate::logger::get_app_dir;
 
 pub const MODEL_URL: &str = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin";
-
-// Get the base directory for app data
-pub fn get_app_dir() -> PathBuf {
-    // Always use executable directory for portable app
-    if let Ok(exe_path) = std::env::current_exe() {
-        if let Some(exe_dir) = exe_path.parent() {
-            println!("Using executable directory: {:?}", exe_dir);
-            return exe_dir.to_path_buf();
-        }
-    }
-    
-    // Fallback to current directory
-    println!("WARNING: Could not determine executable directory, using current directory");
-    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
-}
 
 // Get the model path
 pub fn get_model_path() -> PathBuf {

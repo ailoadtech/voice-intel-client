@@ -1,6 +1,0 @@
-Mittwoch:   Mit QWen Max Thinking die Architektur besprochen. Umgebung auf meiner AWS EC2 mit Dockerfile aufgebaut.
-Donnerstag: Umgebung versucht lokal auf meinem Windows aufzubauen.
-            Exe kompilieren war nicht möglich, weil zu viele Visual Code Versionen und Dependencies.
-Freitag:    Letzter Versuch: Github Actions und build.yml
-            Nach einigen Iterationen dann erfolgreich ein .exe gebaut. Jeder build dauert über 10 Minuten.
-            Im Browser hatte schon mehr funktioniert als mit Tauri :-/

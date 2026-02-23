@@ -1,22 +1,7 @@
 // src-tauri/src/llm.rs
 use std::fs;
-use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
-
-// Get the base directory for app data
-pub fn get_app_dir() -> PathBuf {
-    // Always use executable directory for portable app
-    if let Ok(exe_path) = std::env::current_exe() {
-        if let Some(exe_dir) = exe_path.parent() {
-            println!("Using executable directory: {:?}", exe_dir);
-            return exe_dir.to_path_buf();
-        }
-    }
-    
-    // Fallback to current directory
-    println!("WARNING: Could not determine executable directory, using current directory");
-    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
-}
+use crate::logger::get_app_dir;
 
 #[derive(Serialize)]
 struct OllamaRequest {
@@ -28,6 +13,28 @@ struct OllamaRequest {
 #[derive(Deserialize)]
 struct OllamaResponse {
     response: String,
+}
+
+#[derive(Serialize, Deserialize)]
+struct OpenRouterMessage {
+    role: String,
+    content: String,
+}
+
+#[derive(Serialize)]
+struct OpenRouterRequest {
+    model: String,
+    messages: Vec<OpenRouterMessage>,
+}
+
+#[derive(Deserialize)]
+struct OpenRouterResponse {
+    choices: Vec<OpenRouterChoice>,
+}
+
+#[derive(Deserialize)]
+struct OpenRouterChoice {
+    message: OpenRouterMessage,
 }
 
 // Sendet die Transkription an ein lokales LLM (Ollama), um den Text zu strukturieren und zu verbessern.
@@ -66,7 +73,53 @@ async fn inner_enrich_and_save(
         .timeout(std::time::Duration::from_secs(config.timeout_seconds))
         .build()?;
     
-    // Try to send request to LLM, but handle connection errors gracefully
+    // Route to different provider based on config
+    let provider = config.provider.to_lowercase();
+    
+    if provider == "openrouter" {
+        // OpenRouter request
+        let request = client
+            .post("https://openrouter.ai/api/v1/chat/completions")
+            .header("Authorization", format!("Bearer {}", config.api_key))
+            .header("Content-Type", "application/json")
+            .json(&OpenRouterRequest {
+                model: config.model.clone(),
+                messages: vec![OpenRouterMessage {
+                    role: "user".to_string(),
+                    content: prompt,
+                }],
+            });
+        
+        match request.send().await {
+            Ok(response) => {
+                match response.json::<OpenRouterResponse>().await {
+                    Ok(res) => {
+                        if let Some(choice) = res.choices.first() {
+                            let enriched = choice.message.content.trim().to_string();
+                            fs::write(&out_path, &enriched)?;
+                            return Ok(enriched);
+                        } else {
+                            eprintln!("OpenRouter returned no choices. Saving original transcript.");
+                            fs::write(&out_path, transcript)?;
+                            return Ok(transcript.to_string());
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to parse OpenRouter response: {}. Saving original transcript.", e);
+                        fs::write(&out_path, transcript)?;
+                        return Ok(transcript.to_string());
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("Failed to connect to OpenRouter: {}. Saving original transcript.", e);
+                fs::write(&out_path, transcript)?;
+                return Ok(transcript.to_string());
+            }
+        }
+    }
+    
+    // Default: Ollama request
     match client
         .post(format!("{}/api/generate", config.url.trim_end_matches('/')))
         .json(&OllamaRequest {

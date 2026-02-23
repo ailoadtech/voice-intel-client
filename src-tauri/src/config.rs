@@ -1,28 +1,15 @@
 // src-tauri/src/config.rs
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
 use std::collections::HashMap;
-
-// Get the base directory for app data
-pub fn get_app_dir() -> PathBuf {
-    // Always use executable directory for portable app
-    if let Ok(exe_path) = std::env::current_exe() {
-        if let Some(exe_dir) = exe_path.parent() {
-            println!("Using executable directory: {:?}", exe_dir);
-            return exe_dir.to_path_buf();
-        }
-    }
-    
-    // Fallback to current directory
-    println!("WARNING: Could not determine executable directory, using current directory");
-    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
-}
+use crate::logger::get_app_dir;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LlmConfig {
     pub enabled: bool,
+    pub provider: String,
     pub url: String,
+    pub api_key: String,
     pub model: String,
     pub timeout_seconds: u64,
     pub prompt_template1: String,
@@ -63,7 +50,9 @@ impl Default for AppConfig {
         Self {
             llm: LlmConfig {
                 enabled: true,
+                provider: "ollama".to_string(),
                 url: "http://127.0.0.1:11434".to_string(),
+                api_key: "".to_string(),
                 model: "llama3.2:latest".to_string(),
                 timeout_seconds: 60,
                 prompt_template1: "Verbessere folgenden Text sprachlich, füge Struktur hinzu und gib ihn als professionellen, formatierten Text zurück:\n\n{{text}}".to_string(),

@@ -5,3 +5,5 @@ release/
 dist/
 out/
 .next/
+__outdated/
+src-tauri/target/

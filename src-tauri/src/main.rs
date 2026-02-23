@@ -11,22 +11,8 @@ use serde::Serialize;
 use tauri::{Manager, async_runtime, Emitter};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, Modifiers, Code, ShortcutState};
 use std::time::Duration;
-use std::path::{Path, PathBuf};
-
-// Get the base directory for app data
-fn get_app_dir() -> PathBuf {
-    // Always use executable directory for portable app
-    if let Ok(exe_path) = std::env::current_exe() {
-        if let Some(exe_dir) = exe_path.parent() {
-            println!("Using executable directory: {:?}", exe_dir);
-            return exe_dir.to_path_buf();
-        }
-    }
-    
-    // Fallback to current directory
-    println!("WARNING: Could not determine executable directory, using current directory");
-    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
-}
+use std::path::Path;
+use crate::logger::get_app_dir;
 
 #[derive(Clone, Serialize)]
 struct ProcessPayload {
