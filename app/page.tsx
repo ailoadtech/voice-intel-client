@@ -1345,7 +1345,6 @@ export default function HomePage() {
           background: #4dabf7;
           border-color: #4dabf7;
         }
-        }
         .rec-action-btn-inline:hover { 
           transform: scale(1.1); 
           background: #3d424b;
