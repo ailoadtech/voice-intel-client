@@ -752,6 +752,11 @@ export default function HomePage() {
 
   return (
     <div className="app-container">
+      {/* Debug: Show Tauri mode status */}
+      <div style={{ position: 'absolute', top: 5, right: 10, fontSize: 10, color: isTauriMode === true ? '#4ade80' : '#f87171', zIndex: 1000 }}>
+        {isTauriMode === null ? '⏳ DETECTING...' : isTauriMode ? '✅ TAURI MODE' : '❌ BROWSER MODE'}
+      </div>
+      
       {/* Show loading overlay during initialization */}
       {isInitializing && (
         <div className="loading-overlay">
