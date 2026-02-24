@@ -367,19 +367,18 @@ export default function HomePage() {
       };
 
       mediaRecorderRef.current.onstop = async () => {
+        const isRunningInTauri = typeof window !== "undefined" && !!(window as any).__TAURI__;
+
         // Log to backend immediately
-        if (typeof window !== "undefined" && (window as any).__TAURI__) {
-          await invoke("log_frontend", { message: "=== MEDIARECORDER ONSTOP TRIGGERED ===" }).catch(() => {});
-          await invoke("log_frontend", { message: `isTauriMode: ${isTauriMode}` }).catch(() => {});
+        if (isRunningInTauri) {
+          await invoke("log_frontend", { message: "=== RECORDING END ===" }).catch(() => {});
         }
         
-        console.log("=== MEDIARECORDER ONSTOP START ===");
-        console.log("MediaRecorder stopped, processing audio...");
+        console.log("=== RECORDING END ===");
         const duration = Math.round((Date.now() - startTime) / 1000);
         console.log("Recording duration:", duration, "seconds");
         console.log("Audio chunks collected:", audioChunks.length);
-        console.log("isTauriMode:", isTauriMode);
-        console.log("window.__TAURI__:", typeof (window as any).__TAURI__);
+        console.log("isRunningInTauri:", isRunningInTauri);
         
         if (audioChunks.length === 0) {
           console.error("No audio chunks collected!");
@@ -418,8 +417,7 @@ export default function HomePage() {
         const dateStr = now.toLocaleDateString('de-DE').replace(/\//g, '.');
         const timeStr = now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + ' h';
 
-        console.log("Checking isTauriMode:", isTauriMode);
-        if (isTauriMode) {
+        if (isRunningInTauri) {
           console.log("✓ TAURI MODE - Will save to backend");
           try {
             debugLog(`Attempting to save recording with ${samples.length} samples`);

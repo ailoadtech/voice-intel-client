@@ -12,7 +12,8 @@
                     "check_model",
                     "get_all_recordings",
                     "get_prompt_templates",
-                    "re_enrich_with_prompt"
+                    "re_enrich_with_prompt",
+                    "log_frontend"
                 ]
             }
         }
