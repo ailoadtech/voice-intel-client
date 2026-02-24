@@ -366,7 +366,13 @@ export default function HomePage() {
       }
     };
 
-    // Load prompt template text when selection changes
+    // Load data
+    loadExistingRecordings();
+    loadPromptTemplates();
+    };
+
+    // Start initialization
+    initialize();
   }, []);
 
   const startRecording = useCallback(async () => {
@@ -613,9 +619,9 @@ export default function HomePage() {
     setRecordings(prev => prev.filter(r => r.id !== id));
     audioBlobs.current.delete(id);
     if (activeResult) setActiveResult(null);
-    if (playingId      audioRef.current?.pause();
-      setPlayingId(null === id) {
-);
+    if (playingId === id) {
+      audioRef.current?.pause();
+      setPlayingId(null);
       setPlaybackProgress(0);
     }
 
@@ -912,24 +918,49 @@ export default function HomePage() {
 
                 {/* Inline Transcription Display */}
                 {expandedRecording === rec.id && (
-                  <div className="rec-transcription-inline">
-                    <div className="rec-transcription-header">
-                      {rec.enrichment ? "Transkription + KI" : "Transkription"}
-                      <button 
-                        className="rec-copy-btn"
-                        onClick={() => navigator.clipboard.writeText(rec.enrichment || rec.transcription || "")}
-                        title="In Zwischenablage kopieren"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                        </svg>
-                      </button>
+                  <>
+                    {/* Transcription block */}
+                    <div className="rec-transcription-inline">
+                      <div className="rec-transcription-header">
+                        Transkription
+                        <button 
+                          className="rec-copy-btn"
+                          onClick={() => navigator.clipboard.writeText(rec.transcription || "")}
+                          title="In Zwischenablage kopieren"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                          </svg>
+                        </button>
+                      </div>
+                      <div className="rec-transcription-text">
+                        {rec.transcription}
+                      </div>
                     </div>
-                    <div className="rec-transcription-text">
-                      {rec.enrichment || rec.transcription}
-                    </div>
-                  </div>
+
+                    {/* Enrichment block */}
+                    {rec.enrichment && (
+                      <div className="rec-transcription-inline">
+                        <div className="rec-transcription-header">
+                          Transkription + KI
+                          <button 
+                            className="rec-copy-btn"
+                            onClick={() => navigator.clipboard.writeText(rec.enrichment || "")}
+                            title="In Zwischenablage kopieren"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                          </button>
+                        </div>
+                        <div className="rec-transcription-text">
+                          {rec.enrichment}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
