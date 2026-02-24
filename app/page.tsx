@@ -118,12 +118,16 @@ export default function HomePage() {
     console.log("window location:", window.location.href);
     
     // Force log to backend immediately
-    if (typeof window !== "undefined" && (window as any).__TAURI__) {
-      invoke("log_frontend", { message: "=== HOMEPAGE COMPONENT MOUNTED ===" }).catch(e => {
-        console.error("Failed to log to backend:", e);
-      });
+    const hasTauri = typeof window !== "undefined" && !!(window as any).__TAURI__;
+    console.log("Checking for Tauri, result:", hasTauri);
+    if (hasTauri) {
+      invoke("log_frontend", { message: "=== HOMEPAGE COMPONENT MOUNTED ===" })
+        .then(() => console.log("log_frontend succeeded"))
+        .catch(e => console.error("log_frontend FAILED:", e));
+    } else {
+      console.log("NOT calling log_frontend - Tauri not detected");
     }
-  }, [isTauriMode]);
+  }, []);
 
   // Initialize Worker for Browser Mode
   useEffect(() => {
