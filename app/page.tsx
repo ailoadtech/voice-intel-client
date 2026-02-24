@@ -347,9 +347,9 @@ export default function HomePage() {
       } catch (err) {
         console.error("Failed to load recordings:", err);
       }
-    };
+      };
 
-    const loadPromptTemplates = async () => {
+      const loadPromptTemplates = async () => {
       try {
         const templates = await invoke("get_prompt_templates") as string[];
         setPromptTemplates(templates);
@@ -369,6 +369,8 @@ export default function HomePage() {
     // Load data
     loadExistingRecordings();
     loadPromptTemplates();
+    };
+
   }, []);
 
   const startRecording = useCallback(async () => {
