@@ -4,14 +4,6 @@ use std::fs::OpenOptions;
 use std::io::Write;
 
 pub fn get_app_dir() -> PathBuf {
-    #[cfg(target_os = "windows")]
-    {
-        if let Ok(app_data) = std::env::var("LOCALAPPDATA") {
-            let app_dir = PathBuf::from(app_data).join("voice-intel");
-            return app_dir;
-        }
-    }
-    
     if let Ok(exe_path) = std::env::current_exe() {
         if let Some(exe_dir) = exe_path.parent() {
             return exe_dir.to_path_buf();
@@ -24,14 +16,10 @@ pub struct Logger;
 
 impl Logger {
     pub fn init() {
-        // Append to log file instead of replacing
-        if let Ok(exe_path) = std::env::current_exe() {
-            if let Some(exe_dir) = exe_path.parent() {
-                let log_path = exe_dir.join("voice-intel.log");
-                if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&log_path) {
-                    let _ = writeln!(file, "\n=== Voice Intel Log Started at {} ===", chrono::Local::now().format("%Y-%m-%d %H:%M:%S"));
-                }
-            }
+        let app_dir = get_app_dir();
+        let log_path = app_dir.join("voice-intel.log");
+        if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&log_path) {
+            let _ = writeln!(file, "\n=== Voice Intel Log Started at {} ===", chrono::Local::now().format("%Y-%m-%d %H:%M:%S"));
         }
     }
 
@@ -47,13 +35,10 @@ impl Logger {
     }
     
     fn write_to_file(message: &str) {
-        if let Ok(exe_path) = std::env::current_exe() {
-            if let Some(exe_dir) = exe_path.parent() {
-                let log_path = exe_dir.join("voice-intel.log");
-                if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&log_path) {
-                    let _ = writeln!(file, "{}", message);
-                }
-            }
+        let app_dir = get_app_dir();
+        let log_path = app_dir.join("voice-intel.log");
+        if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&log_path) {
+            let _ = writeln!(file, "{}", message);
         }
     }
 

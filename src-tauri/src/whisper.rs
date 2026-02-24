@@ -4,11 +4,15 @@ use std::path::PathBuf;
 use whisper_rs::{WhisperContext, WhisperContextParameters, FullParams, SamplingStrategy};
 use crate::logger::get_app_dir;
 
-pub const MODEL_URL: &str = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin";
-
 // Get the model path
 pub fn get_model_path() -> PathBuf {
     get_app_dir().join("models").join("ggml-small.bin")
+}
+
+fn get_model_url() -> String {
+    crate::config::AppConfig::load_or_create()
+        .map(|c| c.llm.whisper_model_url)
+        .unwrap_or_else(|_| "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin".to_string())
 }
 
 // Stellt sicher, dass das Whisper-Modell heruntergeladen und im lokalen Verzeichnis verfügbar ist.
@@ -55,7 +59,9 @@ pub fn ensure_model() -> Result<(), String> {
         })?;
     
     Logger::log("Sending HTTP GET request...");
-    let response = client.get(MODEL_URL).send().map_err(|e| {
+    let model_url = get_model_url();
+    Logger::log(&format!("Model URL: {}", model_url));
+    let response = client.get(&model_url).send().map_err(|e| {
         let err_msg = format!("Failed to send HTTP request: {}", e);
         Logger::log_error("HTTP request", &err_msg);
         err_msg

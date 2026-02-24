@@ -16,6 +16,7 @@ pub struct LlmConfig {
     pub prompt_template2: String,
     pub prompt_template3: String,
     pub prompt_template4: String,
+    pub whisper_model_url: String,
 }
 
 impl LlmConfig {
@@ -59,6 +60,7 @@ impl Default for AppConfig {
                 prompt_template2: "Fasse den Text zusammen als Bullet-Liste:\n\n{{text}}".to_string(),
                 prompt_template3: "Schreibe den Text im Stil von Shakespeare:\n\n{{text}}".to_string(),
                 prompt_template4: "Bullshit Bingo. Wenn ein Begriff aus der Kategorie Berufsleben/Management im transkriberten Text auftaucht, dann mache ihn in der enriched Version Fett:\n\n{{text}}".to_string(),
+                whisper_model_url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin".to_string(),
             },
         }
     }
