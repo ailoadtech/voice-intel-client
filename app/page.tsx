@@ -494,7 +494,7 @@ export default function HomePage() {
       };
 
 
-      mediaRecorderRef.current.start();
+      mediaRecorderRef.current.start(250);
       setIsRecording(true);
       setRecordingTime(0);
       timerRef.current = setInterval(() => {
