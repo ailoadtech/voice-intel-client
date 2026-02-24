@@ -320,8 +320,8 @@ export default function HomePage() {
       const loadExistingRecordings = async () => {
       try {
         const existingRecordings = await invoke("get_all_recordings") as Recording[];
-        // Sort by ID (timestamp) in descending order (newest first)
-        existingRecordings.sort((a, b) => parseInt(b.id) - parseInt(a.id));
+        // Sort by ID (timestamp) in ascending order (oldest first, newest at bottom)
+        existingRecordings.sort((a, b) => parseInt(a.id) - parseInt(b.id));
         setRecordings(existingRecordings);
       } catch (err) {
         console.error("Failed to load recordings:", err);
@@ -352,8 +352,9 @@ export default function HomePage() {
   const startRecording = useCallback(async () => {
     // Log to backend immediately
     if (typeof window !== "undefined" && (window as any).__TAURI__) {
-      await invoke("log_frontend", { message: "=== START_RECORDING CALLED ===" }).catch(() => {});
+      await invoke("log_frontend", { message: "=== RECORDING START ===" }).catch(() => {});
     }
+    console.log("=== RECORDING START ===");
     
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -1020,7 +1021,7 @@ export default function HomePage() {
       <style jsx global>{`
         body {
           margin: 0;
-          background: #0f1115;
+          background: transparent;
           color: #e0e0e0;
           font-family: 'Inter', sans-serif;
         }
@@ -1031,6 +1032,9 @@ export default function HomePage() {
           align-items: flex-start;
           padding: 20px 40px;
           box-sizing: border-box;
+          background: rgba(15, 17, 21, 0.95);
+          border-radius: 12px;
+        }
           overflow-y: auto;
           overflow-x: hidden;
         }
@@ -1181,6 +1185,7 @@ export default function HomePage() {
           flex: 1;
           display: flex;
           flex-direction: column;
+          justify-content: flex-end;
           align-items: flex-start;
           gap: 6px;
           overflow-x: hidden;

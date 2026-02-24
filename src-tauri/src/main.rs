@@ -408,8 +408,10 @@ fn main() {
 
                     for (stem, path) in rec_files {
                         tokio::time::sleep(Duration::from_millis(300)).await;
+                        logger::Logger::log(&format!("=== TRANSCRIPTION START: {} ===", stem));
                         match whisper::transcribe_file(&stem) {
                             Ok(transcript) => {
+                                logger::Logger::log(&format!("=== TRANSCRIPTION END: {} ===", stem));
                                 // Emit transcription immediately
                                 let _ = app_handle.emit("transcription_ready", ProcessPayload {
                                     id: stem.to_string(),

@@ -5,7 +5,7 @@ use crate::logger::get_app_dir;
 
 // Speichert Audiosamples als WAV-Datei mit einem Unix-Zeitstempel im Verzeichnis 'recordings'.
 pub fn save_recording(samples: &[i16]) -> Result<String, Box<dyn std::error::Error>> {
-    println!("=== SAVE_RECORDING START ===");
+    println!("=== RECORDING END ===");
     println!("save_recording called with {} samples", samples.len());
     
     let timestamp = std::time::SystemTime::now()
@@ -56,11 +56,11 @@ pub fn save_recording(samples: &[i16]) -> Result<String, Box<dyn std::error::Err
         println!("  Path: {:?}", path);
         println!("  Size: {} bytes", metadata.len());
         println!("  Timestamp ID returned: {}", timestamp);
+        println!("=== RECORDING SAVED ===");
     } else {
         println!("✗ WARNING: File was NOT created at {:?}", path);
         return Err("File verification failed - file does not exist after write".into());
     }
     
-    println!("=== SAVE_RECORDING END ===");
     Ok(timestamp)
 }
