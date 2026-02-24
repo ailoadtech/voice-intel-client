@@ -4,6 +4,14 @@ use std::fs::OpenOptions;
 use std::io::Write;
 
 pub fn get_app_dir() -> PathBuf {
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(app_data) = std::env::var("LOCALAPPDATA") {
+            let app_dir = PathBuf::from(app_data).join("voice-intel");
+            return app_dir;
+        }
+    }
+    
     if let Ok(exe_path) = std::env::current_exe() {
         if let Some(exe_dir) = exe_path.parent() {
             return exe_dir.to_path_buf();

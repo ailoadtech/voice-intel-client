@@ -320,8 +320,8 @@ export default function HomePage() {
       const loadExistingRecordings = async () => {
       try {
         const existingRecordings = await invoke("get_all_recordings") as Recording[];
-        // Sort by ID (timestamp) in ascending order (oldest first, newest at bottom)
-        existingRecordings.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+        // Sort by ID (timestamp) in descending order (newest first)
+        existingRecordings.sort((a, b) => parseInt(b.id) - parseInt(a.id));
         setRecordings(existingRecordings);
       } catch (err) {
         console.error("Failed to load recordings:", err);
@@ -1180,11 +1180,11 @@ export default function HomePage() {
         .history-stack {
           flex: 1;
           display: flex;
-          flex-direction: row;
+          flex-direction: column;
           align-items: flex-start;
           gap: 6px;
-          overflow-x: auto;
-          overflow-y: hidden;
+          overflow-x: hidden;
+          overflow-y: auto;
           padding: 0;
           margin: 0;
           padding-bottom: 70px; /* Space for fixed record button at bottom */
@@ -1221,7 +1221,8 @@ export default function HomePage() {
           border: 1px solid #333; 
           padding: 8px 18px; 
           border-radius: 12px; 
-          width: 550px; 
+          width: 100%; 
+          max-width: 550px;
           box-shadow: 0 4px 15px rgba(0,0,0,0.4);
           position: relative;
           overflow: hidden;
@@ -1377,11 +1378,14 @@ export default function HomePage() {
           width: 40px; height: 40px; border-radius: 50%; border: 3px solid #333; 
           background: none; cursor: pointer; transition: all 0.3s; 
           display: flex; align-items: center; justify-content: center;
+          box-sizing: border-box;
+          transform-origin: center center;
         }
         .record-toggle.idle { animation: pulsateButton 2s ease-in-out infinite; }
-        .record-toggle:not(:disabled):hover { border-color: #ffffff; transform: scale(1.05); box-shadow: 0 0 15px rgba(255, 255, 255, 0.2); }
-        .record-toggle.recording { background: #fa5252; border-color: #fa5252; box-shadow: 0 0 25px rgba(250, 82, 82, 0.5); animation: none; }
-        .record-toggle:disabled { opacity: 0.3; cursor: not-allowed; }
+        .record-toggle.idle:not(:hover) { transform: scale(1); }
+        .record-toggle:not(:disabled):hover { border-color: #ffffff; transform: scale(1.05) !important; box-shadow: 0 0 15px rgba(255, 255, 255, 0.2); }
+        .record-toggle.recording { background: #fa5252; border-color: #fa5252; box-shadow: 0 0 25px rgba(250, 82, 82, 0.5); animation: none; transform: scale(1); }
+        .record-toggle:disabled { opacity: 0.3; cursor: not-allowed; animation: none; transform: scale(1); }
         .record-indicator { width: 16px; height: 16px; background: #fa5252; border-radius: 50%; transition: all 0.3s; }
         .record-toggle.recording .record-indicator { width: 12px; height: 12px; background: white; border-radius: 3px; }
         

@@ -62,7 +62,6 @@ jobs:
         run: |
           mkdir release
           mkdir release\models
-          mkdir release\recordings
           copy src-tauri\target\release\voice-intel-app.exe release\
           echo { > release\config.json
           echo   "llm": { >> release\config.json
