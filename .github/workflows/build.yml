@@ -76,6 +76,9 @@ jobs:
           echo     "prompt_template3": "Schreibe den Text im Stil von Shakespeare:\n\n{{text}}", >> release\config.json
           echo     "prompt_template4": "Bullshit Bingo. Wenn ein Begriff aus der Kategorie Berufsleben/Management im transkribierten Text auftaucht, dann mache ihn in der enriched Version Fett:\n\n{{text}}", >> release\config.json
           echo     "whisper_model_url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin" >> release\config.json
+          echo   }, >> release\config.json
+          echo   "settings": { >> release\config.json
+          echo     "show_console": false >> release\config.json
           echo   } >> release\config.json
           echo } >> release\config.json
         shell: cmd

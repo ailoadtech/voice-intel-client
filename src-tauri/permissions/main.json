@@ -12,6 +12,7 @@
                     "check_model",
                     "get_all_recordings",
                     "get_prompt_templates",
+                    "get_prompt_template_text",
                     "re_enrich_with_prompt",
                     "log_frontend"
                 ]

@@ -40,9 +40,15 @@ impl LlmConfig {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AppSettings {
+    pub show_console: bool,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct AppConfig {
     pub llm: LlmConfig,
+    pub settings: AppSettings,
 }
 
 impl Default for AppConfig {
@@ -62,6 +68,9 @@ impl Default for AppConfig {
                 prompt_template4: "Bullshit Bingo. Wenn ein Begriff aus der Kategorie Berufsleben/Management im transkriberten Text auftaucht, dann mache ihn in der enriched Version Fett:\n\n{{text}}".to_string(),
                 whisper_model_url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin".to_string(),
             },
+            settings: AppSettings {
+                show_console: false,
+            },
         }
     }
 }
@@ -70,6 +79,10 @@ impl AppConfig {
     // Lädt die Konfiguration aus der Datei oder erstellt eine neue Standarddatei, falls sie fehlt.
     pub fn load_or_create() -> Result<Self, String> {
         Self::inner_load_or_create().map_err(|e| e.to_string())
+    }
+
+    pub fn show_console(&self) -> bool {
+        self.settings.show_console
     }
 
     // Interne Logik zum Laden oder Erstellen der Konfigurationsdatei.
@@ -81,6 +94,14 @@ impl AppConfig {
             fs::write(&config_path, serde_json::to_string_pretty(&default)?)?;
         }
         let content = fs::read_to_string(&config_path)?;
-        Ok(serde_json::from_str(&content)?)
+        
+        // Try to parse, if it fails due to missing settings, use defaults
+        match serde_json::from_str::<AppConfig>(&content) {
+            Ok(config) => Ok(config),
+            Err(_) => {
+                // If parsing fails, return default config
+                Ok(Self::default())
+            }
+        }
     }
 }

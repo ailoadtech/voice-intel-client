@@ -101,7 +101,9 @@ export default function HomePage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [promptTemplates, setPromptTemplates] = useState<string[]>([]);
   const [selectedPrompt, setSelectedPrompt] = useState<string>("Prompt 1");
+  const [promptTemplateText, setPromptTemplateText] = useState<string>("");
   const [enrichingId, setEnrichingId] = useState<string | null>(null);
+  const [expandedRecording, setExpandedRecording] = useState<string | null>(null);
   const [isModelAvailable, setIsModelAvailable] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true); // Start as true to show splash screen
   const [isTauriMode, setIsTauriMode] = useState<boolean | null>(null); // null = not yet determined
@@ -128,6 +130,21 @@ export default function HomePage() {
       console.log("NOT calling log_frontend - Tauri not detected");
     }
   }, []);
+
+  // Load prompt template text when selection changes
+  useEffect(() => {
+    const loadPromptText = async () => {
+      if (typeof window !== "undefined" && !!(window as any).__TAURI__ && selectedPrompt) {
+        try {
+          const text = await invoke("get_prompt_template_text", { promptName: selectedPrompt }) as string;
+          setPromptTemplateText(text);
+        } catch (err) {
+          console.error("Failed to load prompt template text:", err);
+        }
+      }
+    };
+    loadPromptText();
+  }, [selectedPrompt]);
 
   // Initialize Worker for Browser Mode
   useEffect(() => {
@@ -338,19 +355,18 @@ export default function HomePage() {
         setPromptTemplates(templates);
         if (templates.length > 0) {
           setSelectedPrompt(templates[0]);
+          // Load the text for the first template
+          if (typeof window !== "undefined" && !!(window as any).__TAURI__) {
+            const text = await invoke("get_prompt_template_text", { promptName: templates[0] }) as string;
+            setPromptTemplateText(text);
+          }
         }
       } catch (err) {
         console.error("Failed to load prompt templates:", err);
       }
     };
 
-    // Load data
-    loadExistingRecordings();
-    loadPromptTemplates();
-    };
-    
-    // Start initialization
-    initialize();
+    // Load prompt template text when selection changes
   }, []);
 
   const startRecording = useCallback(async () => {
@@ -597,13 +613,14 @@ export default function HomePage() {
     setRecordings(prev => prev.filter(r => r.id !== id));
     audioBlobs.current.delete(id);
     if (activeResult) setActiveResult(null);
-    if (playingId === id) {
-      audioRef.current?.pause();
-      setPlayingId(null);
+    if (playingId      audioRef.current?.pause();
+      setPlayingId(null === id) {
+);
       setPlaybackProgress(0);
     }
 
-    if (isTauriMode) {
+    // Use direct window check instead of stale isTauriMode
+    if (typeof window !== "undefined" && !!(window as any).__TAURI__) {
       try {
         await invoke("delete_recording", { id });
       } catch (err) {
@@ -752,11 +769,6 @@ export default function HomePage() {
 
   return (
     <div className="app-container">
-      {/* Debug: Show Tauri mode status */}
-      <div style={{ position: 'absolute', top: 5, right: 10, fontSize: 10, color: isTauriMode === true ? '#4ade80' : '#f87171', zIndex: 1000 }}>
-        {isTauriMode === null ? '⏳ DETECTING...' : isTauriMode ? '✅ TAURI MODE' : '❌ BROWSER MODE'}
-      </div>
-      
       {/* Show loading overlay during initialization */}
       {isInitializing && (
         <div className="loading-overlay">
@@ -792,23 +804,6 @@ export default function HomePage() {
       {/* Main Content Area */}
       <div className="main-content">
 
-        {/* Prompt Template Selector */}
-        {isTauriMode && promptTemplates.length > 0 && (
-          <div className="prompt-selector">
-            <label htmlFor="prompt-select" className="prompt-label">KI-Stil:</label>
-            <select 
-              id="prompt-select"
-              value={selectedPrompt} 
-              onChange={(e) => setSelectedPrompt(e.target.value)}
-              className="prompt-dropdown"
-            >
-              {promptTemplates.map((template) => (
-                <option key={template} value={template}>{template}</option>
-              ))}
-            </select>
-          </div>
-        )}
-
         {/* History Stack and Record Button - Bottom Layout */}
         <div className="controls-and-history">
           {/* History Stack - saved recordings only */}
@@ -827,7 +822,7 @@ export default function HomePage() {
                     {playingId === rec.id ? '■' : '▶'}
                   </button>
                   <span className="rec-duration">{formatDuration(rec.duration)}</span>
-                  <span className="rec-text-preview">{rec.transcription || ""}</span>
+                  <span className="rec-text-preview">{rec.transcription ? (rec.transcription.length > 35 ? rec.transcription.substring(0, 35) + "..." : rec.transcription) : ""}</span>
                   
                   <div className="rec-footer-actions">
                     {!rec.transcription && (
@@ -839,13 +834,9 @@ export default function HomePage() {
                     {rec.transcription && (
                       <button
                         onClick={() => {
-                          if (activeResult?.text === rec.transcription && activeResult?.title === "Transkription") {
-                            setActiveResult(null);
-                          } else {
-                            setActiveResult({ text: rec.transcription!, title: "Transkription" });
-                          }
+                          setExpandedRecording(expandedRecording === rec.id ? null : rec.id);
                         }}
-                        className="rec-action-btn-inline"
+                        className={`rec-action-btn-inline ${expandedRecording === rec.id ? 'active' : ''}`}
                         title="Transkription anzeigen"
                       >
                         <img src="/transkription.png" alt="A" />
@@ -853,49 +844,18 @@ export default function HomePage() {
                     )}
 
                     {rec.transcription && !rec.enrichment && isModelAvailable && (
-                      <button
-                        onClick={() => reEnrichWithPrompt(rec.id)}
-                        className="rec-action-btn-inline"
-                        disabled={enrichingId === rec.id}
-                        title="Mit KI anreichern"
-                      >
-                        {enrichingId === rec.id ? (
-                          <div className="button-spinner-inline"></div>
-                        ) : (
-                          <img src="/.png" alt="AI" />
-                        )}
-                      </button>
                     )}
 
                     {rec.enrichment && (
                       <>
                         <button
                           onClick={() => {
-                            if (activeResult?.text === rec.enrichment && activeResult?.title === "Transkription + KI") {
-                              setActiveResult(null);
-                            } else {
-                              setActiveResult({ text: rec.enrichment!, title: "Transkription + KI" });
-                            }
+                            setExpandedRecording(expandedRecording === rec.id ? null : rec.id);
                           }}
-                          className="rec-action-btn-inline"
+                          className={`rec-action-btn-inline ${expandedRecording === rec.id ? 'active' : ''}`}
                           title="Transkription AI"
                         >
                           <img src="/transkription-ai.png" alt="AI" />
-                        </button>
-                        
-                        <button
-                          onClick={() => reEnrichWithPrompt(rec.id)}
-                          className="rec-action-btn-inline"
-                          disabled={enrichingId === rec.id}
-                          title="Mit KI anreichern"
-                        >
-                          {enrichingId === rec.id ? (
-                            <div className="button-spinner-inline"></div>
-                          ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
-                            </svg>
-                          )}
                         </button>
                         
                         {/* Prompt Selector Dropdown */}
@@ -907,7 +867,9 @@ export default function HomePage() {
                             title="Prompt-Template auswählen"
                           >
                             {promptTemplates.map((template) => (
-                              <option key={template} value={template}>{template}</option>
+                              <option key={template} value={template} title={template === selectedPrompt ? promptTemplateText : ""}>
+                                {template}
+                              </option>
                             ))}
                           </select>
                         )}
@@ -945,6 +907,28 @@ export default function HomePage() {
                       className="playback-progress-bar"
                       style={{ width: `${playbackProgress}%` }}
                     />
+                  </div>
+                )}
+
+                {/* Inline Transcription Display */}
+                {expandedRecording === rec.id && (
+                  <div className="rec-transcription-inline">
+                    <div className="rec-transcription-header">
+                      {rec.enrichment ? "Transkription + KI" : "Transkription"}
+                      <button 
+                        className="rec-copy-btn"
+                        onClick={() => navigator.clipboard.writeText(rec.enrichment || rec.transcription || "")}
+                        title="In Zwischenablage kopieren"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                      </button>
+                    </div>
+                    <div className="rec-transcription-text">
+                      {rec.enrichment || rec.transcription}
+                    </div>
                   </div>
                 )}
               </div>
@@ -985,15 +969,6 @@ export default function HomePage() {
               </div>
             )}
           </div>
-        </div>
-      </div>
-
-          {/* Bottom Display Area */}
-          <div className={`display-panel ${activeResult ? 'visible' : 'hidden'}`}>
-            <div className="panel-content">
-              <button onClick={() => setActiveResult(null)} className="panel-close">✕</button>
-          <h2 className="panel-title">{activeResult?.title || "Transkription"}</h2>
-          <div className="panel-body">{activeResult?.text}</div>
         </div>
       </div>
         </>
@@ -1046,9 +1021,10 @@ export default function HomePage() {
           overflow-x: hidden;
         }
         
-        /* Show scrollbar for app-container */
+        /* Show scrollbar for app-container only when necessary */
         .app-container::-webkit-scrollbar {
           width: 8px;
+          height: 8px;
         }
         .app-container::-webkit-scrollbar-track {
           background: #1a1d23;
@@ -1257,6 +1233,59 @@ export default function HomePage() {
           background: #40c057;
           transition: width 0.1s linear;
         }
+
+        .rec-transcription-inline {
+          background: #1a1d23;
+          border: 1px solid #333;
+          border-radius: 8px;
+          padding: 12px;
+          margin-top: 8px;
+          width: 100%;
+          max-width: 550px;
+          box-sizing: border-box;
+          animation: slideDown 0.2s ease-out;
+        }
+
+        @keyframes slideDown {
+          from { opacity: 0; transform: translateY(-10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        .rec-transcription-header {
+          font-size: 12px;
+          color: #4dabf7;
+          margin-bottom: 8px;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+
+        .rec-copy-btn {
+          background: none;
+          border: none;
+          color: #666;
+          cursor: pointer;
+          padding: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 4px;
+          transition: all 0.2s;
+        }
+
+        .rec-copy-btn:hover {
+          color: #4dabf7;
+          background: rgba(77, 171, 247, 0.1);
+        }
+
+        .rec-transcription-text {
+          font-size: 14px;
+          color: #d1d5db;
+          line-height: 1.5;
+          white-space: pre-wrap;
+          word-wrap: break-word;
+        }
         
         .rec-time { font-size: 13px; color: #aaa; font-weight: 500; flex-shrink: 0; }
         .rec-footer { display: flex; align-items: center; gap: 8px; height: 100%; }
@@ -1282,6 +1311,11 @@ export default function HomePage() {
           justify-content: center; 
           padding: 4px;
           flex-shrink: 0;
+        }
+        .rec-action-btn-inline.active {
+          background: #4dabf7;
+          border-color: #4dabf7;
+        }
         }
         .rec-action-btn-inline:hover { 
           transform: scale(1.1); 
@@ -1380,6 +1414,14 @@ export default function HomePage() {
         
         .current-recording-display {
           animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+          width: 100%;
+          max-width: 550px;
+        }
+
+        .current-recording-display .rec-card {
+          width: 100%;
+          max-width: 550px;
+          box-sizing: border-box;
         }
         
         @keyframes slideIn {
@@ -1415,10 +1457,23 @@ export default function HomePage() {
         }
         
         .custom-scrollbar {
-          scrollbar-width: none;
-          -ms-overflow-style: none;
+          overflow-x: auto;
+          overflow-y: auto;
         }
-        .custom-scrollbar::-webkit-scrollbar { display: none; }
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 8px;
+          height: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #1a1d23;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #333;
+          border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #444;
+        }
 
         .loading-overlay {
           position: fixed; top: 0; left: 0; right: 0; bottom: 0;

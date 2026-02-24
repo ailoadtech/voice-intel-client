@@ -346,9 +346,11 @@ fn inner_transcribe(timestamp: &str) -> Result<String, String> {
     }
     let transcript = text.trim().to_string();
     
-    // Wenn nach dem Filtern kein Text übrig ist, gebe einen Fehler zurück
+    // Wenn nach dem Filtern kein Text übrig ist, speichere einen leeren Eintrag
     if transcript.is_empty() || !is_valid_transcription(&transcript) {
-        return Err("Keine gültige Transkription erkannt (möglicherweise nur Hintergrundgeräusche)".to_string());
+        // Leere Transkription speichern (statt Fehler)
+        fs::write(&out_path, "").map_err(|e| e.to_string())?;
+        return Ok(String::new());
     }
 
     fs::write(&out_path, &transcript).map_err(|e| e.to_string())?;

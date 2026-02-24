@@ -169,6 +169,17 @@ async fn get_prompt_templates() -> Result<Vec<String>, String> {
 }
 
 #[tauri::command]
+async fn get_prompt_template_text(prompt_name: String) -> Result<String, String> {
+    let config = config::AppConfig::load_or_create()?;
+    if let Some(text) = config.llm.get_template_by_name(&prompt_name) {
+        // Return just the first line as tooltip
+        Ok(text.lines().next().unwrap_or("").to_string())
+    } else {
+        Ok("".to_string())
+    }
+}
+
+#[tauri::command]
 async fn re_enrich_with_prompt(id: String, prompt_name: String) -> Result<String, String> {
     let app_dir = get_app_dir();
     let whisper_path = app_dir.join("recordings").join(format!("{}.whisper.txt", id));
@@ -453,7 +464,7 @@ fn main() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![save_and_queue_recording, get_recording_audio, delete_recording, check_model, get_all_recordings, get_prompt_templates, re_enrich_with_prompt, log_frontend])
+        .invoke_handler(tauri::generate_handler![save_and_queue_recording, get_recording_audio, delete_recording, check_model, get_all_recordings, get_prompt_templates, get_prompt_template_text, re_enrich_with_prompt, log_frontend])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
