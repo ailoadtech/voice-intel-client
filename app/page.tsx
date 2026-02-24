@@ -369,7 +369,6 @@ export default function HomePage() {
     // Load data
     loadExistingRecordings();
     loadPromptTemplates();
-    };
 
     // Start initialization
     initialize();
