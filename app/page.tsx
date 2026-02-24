@@ -371,6 +371,7 @@ export default function HomePage() {
     loadPromptTemplates();
     };
 
+    initialize();
   }, []);
 
   const startRecording = useCallback(async () => {
@@ -845,9 +846,6 @@ export default function HomePage() {
                       >
                         <img src="/transkription.png" alt="A" />
                       </button>
-                    )}
-
-                    {rec.transcription && !rec.enrichment && isModelAvailable && (
                     )}
 
                     {rec.enrichment && (
