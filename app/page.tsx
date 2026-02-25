@@ -1199,6 +1199,9 @@ export default function HomePage() {
           padding: 0;
           margin: 0;
           padding-bottom: 70px; /* Space for fixed record button at bottom */
+          width: 100%;
+          max-width: 550px;
+          box-sizing: border-box;
         }
 
         .controls-bar {
@@ -1219,6 +1222,8 @@ export default function HomePage() {
           display: flex; 
           flex-direction: column;
           align-items: flex-start; 
+          width: 100%;
+          max-width: 550px;
           animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
           flex-shrink: 0;
         }

@@ -342,11 +342,9 @@ fn main() {
                 // Model doesn't exist, emit event to show splash screen
                 logger::Logger::log("Model not found, will download - emitting model_checking event");
                 let _ = app.handle().emit("model_checking", ());
-            } else {
-                // Model already exists, emit model_ready immediately
-                logger::Logger::log("Model already exists - emitting model_ready event");
-                let _ = app.handle().emit("model_ready", ());
             }
+            // Note: We don't emit model_ready here anymore - let the background task do it
+            // This ensures the frontend has time to set up its event listeners
             
             // Check and download model on startup
             let app_handle_model = app.handle().clone();
@@ -376,7 +374,9 @@ fn main() {
                             }
                             
                             // Emit event to frontend that model is ready
-                            logger::Logger::log("Emitting model_ready event to frontend");
+                            // Add a small delay to ensure frontend has time to set up listener
+                            logger::Logger::log("Emitting model_ready event to frontend (after delay)");
+                            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
                             let _ = app_handle_model.emit("model_ready", ());
                         } else {
                             logger::Logger::log_error("Model verification", "Model file does not exist after ensure_model completed");
