@@ -81,10 +81,6 @@ impl AppConfig {
         Self::inner_load_or_create().map_err(|e| e.to_string())
     }
 
-    pub fn show_console(&self) -> bool {
-        self.settings.show_console
-    }
-
     // Interne Logik zum Laden oder Erstellen der Konfigurationsdatei.
     fn inner_load_or_create() -> Result<Self, Box<dyn std::error::Error>> {
         let config_path = get_app_dir().join("config.json");

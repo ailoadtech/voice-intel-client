@@ -911,9 +911,10 @@ export default function HomePage() {
                     />
                   </div>
                 )}
+              </div>
 
-                {/* Inline Transcription Display */}
-                {expandedRecording === rec.id && (
+              {/* Inline Transcription Display */}
+              {expandedRecording === rec.id && (
                   <>
                     {/* Transcription block */}
                     <div className="rec-transcription-inline">
@@ -956,7 +957,6 @@ export default function HomePage() {
                     )}
                   </>
                 )}
-              </div>
             </div>
           ))}
 
@@ -1034,6 +1034,8 @@ export default function HomePage() {
         }
         .app-container {
           height: 100vh;
+          width: 100%;
+          min-width: 600px;
           display: flex;
           flex-direction: column;
           align-items: flex-start;
@@ -1095,7 +1097,8 @@ export default function HomePage() {
         
         /* Main Layout */
         .main-content {
-          width: 900px;
+          width: 100%;
+          max-width: 750px;
           display: flex;
           flex-direction: column;
           flex: 1;
@@ -1320,7 +1323,7 @@ export default function HomePage() {
         .rec-time { font-size: 13px; color: #aaa; font-weight: 500; flex-shrink: 0; }
         .rec-footer { display: flex; align-items: center; gap: 8px; height: 100%; }
         .rec-footer-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
-        .rec-play-btn, .rec-delete-btn { background: none; border: none; color: #aaa; cursor: pointer; font-size: 18px; transition: all 0.2s; width: 26px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .rec-play-btn, .rec-delete-btn { background: none; border: none; color: #aaa; cursor: pointer; font-size: 18px; transition: all 0.2s; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-sizing: border-box; }
         .rec-play-btn:hover { color: #4dabf7; transform: scale(1.1); }
         .rec-play-btn.playing { color: #aaa; }
         .rec-play-btn.playing:hover { color: #4dabf7; transform: scale(1.1); }
@@ -1339,8 +1342,8 @@ export default function HomePage() {
           display: flex; 
           align-items: center; 
           justify-content: center; 
-          padding: 4px;
           flex-shrink: 0;
+          box-sizing: border-box;
         }
         .rec-action-btn-inline.active {
           background: #4dabf7;
