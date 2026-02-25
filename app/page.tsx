@@ -866,7 +866,7 @@ export default function HomePage() {
                             value={selectedPrompt} 
                             onChange={(e) => setSelectedPrompt(e.target.value)}
                             className="rec-prompt-dropdown"
-                            title="Prompt-Template auswählen"
+                            title={promptTemplateText}
                           >
                             {promptTemplates.map((template) => (
                               <option key={template} value={template} title={template === selectedPrompt ? promptTemplateText : ""}>
@@ -918,7 +918,6 @@ export default function HomePage() {
                     {/* Transcription block */}
                     <div className="rec-transcription-inline">
                       <div className="rec-transcription-header">
-                        Transkription
                         <button 
                           className="rec-copy-btn"
                           onClick={() => navigator.clipboard.writeText(rec.transcription || "")}
@@ -939,7 +938,6 @@ export default function HomePage() {
                     {rec.enrichment && (
                       <div className="rec-transcription-inline">
                         <div className="rec-transcription-header">
-                          Transkription + KI
                           <button 
                             className="rec-copy-btn"
                             onClick={() => navigator.clipboard.writeText(rec.enrichment || "")}
@@ -1043,9 +1041,7 @@ export default function HomePage() {
           box-sizing: border-box;
           background: rgba(15, 17, 21, 0.95);
           border-radius: 12px;
-        }
-          overflow-y: auto;
-          overflow-x: hidden;
+          overflow: auto;
         }
         
         /* Show scrollbar for app-container only when necessary */
@@ -1221,6 +1217,7 @@ export default function HomePage() {
         /* Recording Item */
         .rec-item { 
           display: flex; 
+          flex-direction: column;
           align-items: flex-start; 
           animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
           flex-shrink: 0;
@@ -1243,7 +1240,8 @@ export default function HomePage() {
           overflow: hidden;
           display: flex;
           align-items: center;
-          min-height: 40px;
+          height: 50px;
+          box-sizing: border-box;
         }
 
         .playback-progress-container {
