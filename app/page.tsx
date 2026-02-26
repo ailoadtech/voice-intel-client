@@ -109,6 +109,23 @@ export default function HomePage() {
   const [isInitializing, setIsInitializing] = useState(true); // Start as true to show splash screen
   const [isTauriMode, setIsTauriMode] = useState<boolean | null>(null); // null = not yet determined
   const [isHistoryVisible, setIsHistoryVisible] = useState(false); // State to control history visibility (hidden by default)
+  const [isSettingsVisible, setIsSettingsVisible] = useState(false); // State to control settings visibility
+  const [previousHistoryVisible, setPreviousHistoryVisible] = useState<boolean | null>(null); // Track history state before settings opened
+  const [config, setConfig] = useState<{
+    provider: 'ollama' | 'openrouter';
+    url: string;
+    api_key: string;
+    model: string;
+    timeout_seconds: number;
+    prompt_template1: string;
+    prompt_template2: string;
+    prompt_template3: string;
+    prompt_template4: string;
+    whisper_model_url: string;
+    enabled: boolean;
+  } | null>(null);
+  const [configLoading, setConfigLoading] = useState(false);
+  const [configMessage, setConfigMessage] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -131,6 +148,37 @@ export default function HomePage() {
     } else {
       console.log("NOT calling log_frontend - Tauri not detected");
     }
+  }, []);
+
+  // Load config on mount (Tauri mode only)
+  useEffect(() => {
+    const loadConfig = async () => {
+      if (typeof window !== "undefined" && !!(window as any).__TAURI__) {
+        try {
+          setConfigLoading(true);
+          const cfg = await invoke("get_config") as any;
+          setConfig({
+            provider: cfg.llm.provider === 'openrouter' ? 'openrouter' : 'ollama',
+            url: cfg.llm.url,
+            api_key: cfg.llm.api_key,
+            model: cfg.llm.model,
+            timeout_seconds: cfg.llm.timeout_seconds,
+            prompt_template1: cfg.llm.prompt_template1,
+            prompt_template2: cfg.llm.prompt_template2,
+            prompt_template3: cfg.llm.prompt_template3,
+            prompt_template4: cfg.llm.prompt_template4,
+            whisper_model_url: cfg.llm.whisper_model_url,
+            enabled: cfg.llm.enabled,
+          });
+          setConfigLoading(false);
+        } catch (err) {
+          console.error("Failed to load config:", err);
+          setConfigMessage("Failed to load configuration");
+          setConfigLoading(false);
+        }
+      }
+    };
+    loadConfig();
   }, []);
 
   // Load prompt template text when selection changes
@@ -976,7 +1024,197 @@ export default function HomePage() {
 
           </div>
 
-          {/* Record Button and Current Recording - Bottom Left */}
+          {/* Settings Panel - appears in place of history stack when visible */}
+          {isSettingsVisible && (
+            <div className="settings-panel custom-scrollbar" style={{ display: 'block' }}>
+              <div className="settings-card">
+                <div className="settings-header">
+                  <h3 className="settings-title">Einstellungen</h3>
+                  <button 
+                    className="settings-close-btn"
+                    onClick={() => setIsSettingsVisible(false)}
+                    title="Schließen"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                  </button>
+                </div>
+                <div className="settings-content">
+                  {configLoading ? (
+                    <div className="settings-loading">Lade Konfiguration...</div>
+                  ) : configMessage ? (
+                    <div className="settings-error">{configMessage}</div>
+                  ) : (
+                    <>
+                  <div className="settings-section">
+                    <h4 className="settings-section-title">LLM Provider</h4>
+                    <div className="settings-item">
+                      <label className="settings-label">Provider</label>
+                      <select 
+                        className="settings-select"
+                        value={config?.provider || 'ollama'}
+                        onChange={(e) => {
+                          const provider = e.target.value as 'ollama' | 'openrouter';
+                          const defaultUrl = provider === 'ollama' ? 'http://127.0.0.1:11434' : 'https://openrouter.ai/api/v1';
+                          setConfig(prev => prev ? { ...prev, provider, url: defaultUrl } : null);
+                        }}
+                      >
+                        <option value="ollama">Ollama (Lokal)</option>
+                        <option value="openrouter">OpenRouter (Cloud)</option>
+                      </select>
+                    </div>
+                    {config?.provider === 'openrouter' && (
+                      <div className="settings-item">
+                        <label className="settings-label">API Key</label>
+                        <input 
+                          type="password"
+                          className="settings-input"
+                          value={config?.api_key || ''}
+                          onChange={(e) => setConfig(prev => prev ? { ...prev, api_key: e.target.value } : null)}
+                          placeholder="sk-or-..."
+                        />
+                      </div>
+                    )}
+                    <div className="settings-item">
+                      <label className="settings-label">Server URL</label>
+                      <input 
+                        type="text"
+                        className="settings-input"
+                        value={config?.url || ''}
+                        onChange={(e) => setConfig(prev => prev ? { ...prev, url: e.target.value } : null)}
+                        placeholder={config?.provider === 'ollama' ? 'http://127.0.0.1:11434' : 'https://openrouter.ai/api/v1'}
+                      />
+                    </div>
+                    <div className="settings-item">
+                      <label className="settings-label">Modell</label>
+                      <input 
+                        type="text"
+                        className="settings-input"
+                        value={config?.model || ''}
+                        onChange={(e) => setConfig(prev => prev ? { ...prev, model: e.target.value } : null)}
+                        placeholder="llama3.2:latest"
+                      />
+                    </div>
+                    <div className="settings-item">
+                      <label className="settings-label">Timeout (Sekunden)</label>
+                      <input 
+                        type="number"
+                        className="settings-input"
+                        value={config?.timeout_seconds || 60}
+                        onChange={(e) => setConfig(prev => prev ? { ...prev, timeout_seconds: parseInt(e.target.value) || 60 } : null)}
+                        min={1}
+                        max={300}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="settings-section">
+                    <h4 className="settings-section-title">Prompt Templates</h4>
+                    <div className="settings-item">
+                      <label className="settings-label">Prompt 1</label>
+                      <textarea 
+                        className="settings-textarea"
+                        value={config?.prompt_template1 || ''}
+                        onChange={(e) => setConfig(prev => prev ? { ...prev, prompt_template1: e.target.value } : null)}
+                        rows={3}
+                      />
+                    </div>
+                    <div className="settings-item">
+                      <label className="settings-label">Prompt 2</label>
+                      <textarea 
+                        className="settings-textarea"
+                        value={config?.prompt_template2 || ''}
+                        onChange={(e) => setConfig(prev => prev ? { ...prev, prompt_template2: e.target.value } : null)}
+                        rows={3}
+                      />
+                    </div>
+                    <div className="settings-item">
+                      <label className="settings-label">Prompt 3</label>
+                      <textarea 
+                        className="settings-textarea"
+                        value={config?.prompt_template3 || ''}
+                        onChange={(e) => setConfig(prev => prev ? { ...prev, prompt_template3: e.target.value } : null)}
+                        rows={3}
+                      />
+                    </div>
+                    <div className="settings-item">
+                      <label className="settings-label">Prompt 4</label>
+                      <textarea 
+                        className="settings-textarea"
+                        value={config?.prompt_template4 || ''}
+                        onChange={(e) => setConfig(prev => prev ? { ...prev, prompt_template4: e.target.value } : null)}
+                        rows={3}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="settings-section">
+                    <h4 className="settings-section-title">Whisper Modell</h4>
+                    <div className="settings-item">
+                      <label className="settings-label">Modell URL</label>
+                      <input 
+                        type="text"
+                        className="settings-input"
+                        value={config?.whisper_model_url || ''}
+                        onChange={(e) => setConfig(prev => prev ? { ...prev, whisper_model_url: e.target.value } : null)}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="settings-actions">
+                    <button 
+                      className="settings-button-primary"
+                      onClick={async () => {
+                        if (!config) return;
+                        try {
+                          await invoke("save_config", { configData: config });
+                          setConfigMessage("Konfiguration gespeichert!");
+                          setTimeout(() => setConfigMessage(null), 3000);
+                        } catch (err) {
+                          setConfigMessage("Fehler beim Speichern: " + (err as any).toString());
+                        }
+                      }}
+                    >
+                      Speichern
+                    </button>
+                    <button 
+                      className="settings-button-secondary"
+                      onClick={async () => {
+                        try {
+                          const cfg = await invoke("get_config") as any;
+                          setConfig({
+                            provider: cfg.llm.provider === 'openrouter' ? 'openrouter' : 'ollama',
+                            url: cfg.llm.url,
+                            api_key: cfg.llm.api_key,
+                            model: cfg.llm.model,
+                            timeout_seconds: cfg.llm.timeout_seconds,
+                            prompt_template1: cfg.llm.prompt_template1,
+                            prompt_template2: cfg.llm.prompt_template2,
+                            prompt_template3: cfg.llm.prompt_template3,
+                            prompt_template4: cfg.llm.prompt_template4,
+                            whisper_model_url: cfg.llm.whisper_model_url,
+                            enabled: cfg.llm.enabled,
+                          });
+                          setConfigMessage("Konfiguration neu geladen");
+                          setTimeout(() => setConfigMessage(null), 3000);
+                        } catch (err) {
+                          setConfigMessage("Fehler beim Laden: " + (err as any).toString());
+                        }
+                      }}
+                    >
+                      Neu laden
+                    </button>
+                  </div>
+                  </>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Record Button, Eject Button, and Settings Button - Bottom Left */}
           <div className="record-section">
             <div className="record-button-wrapper">
               <button
@@ -988,22 +1226,34 @@ export default function HomePage() {
                 <div className="record-indicator"></div>
               </button>
               <button 
-                className="eject-button" 
-                title="Aufnahme auswerfen"
+                className="eject-button"
+                title="Aufnahmen"
                 onClick={() => setIsHistoryVisible(!isHistoryVisible)}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M14 3v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V3"></path>
-                  <path d="M20 3v6a2 2 0 0 0 2 2h4"></path>
-                  <path d="M12 21h-4"></path>
-                  <path d="M12 15V9"></path>
-                  <path d="M8 9l4-3 4 3"></path>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                  <line x1="12" y1="11" x2="12" y2="17"></line>
+                  <line x1="9" y1="14" x2="15" y2="14"></line>
                 </svg>
               </button>
               <button 
                 className="settings-button" 
                 title="Einstellungen"
-                onClick={() => console.log("Settings clicked")}
+                onClick={() => {
+                  if (!isSettingsVisible) {
+                    // Opening settings: save current history state and hide it
+                    setPreviousHistoryVisible(isHistoryVisible);
+                    setIsSettingsVisible(true);
+                    setIsHistoryVisible(false);
+                  } else {
+                    // Closing settings: restore previous history state
+                    setIsSettingsVisible(false);
+                    if (previousHistoryVisible !== null) {
+                      setIsHistoryVisible(previousHistoryVisible);
+                      setPreviousHistoryVisible(null);
+                    }
+                  }
+                }}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="3"></circle>
@@ -1482,7 +1732,7 @@ export default function HomePage() {
           animation: spin 1s linear infinite;
         }
         
-        /* Record Button */
+        /* Record Button Section - contains record, eject, and settings buttons */
         .record-section { 
           position: fixed;
           bottom: 20px;
@@ -1495,100 +1745,11 @@ export default function HomePage() {
         }
         
         .record-button-wrapper {
-          position: relative;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-        }
-        
-        .eject-button {
-          position: absolute;
-          bottom: calc(100% + 8px);
-          left: 50%;
-          transform: translateX(-50%);
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
-          background: #2d323b;
-          border: 2px solid #444;
-          cursor: pointer;
           display: flex;
           align-items: center;
-          justify-content: center;
-          color: #aaa;
-          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-          opacity: 1;
-          pointer-events: auto;
-          box-sizing: border-box;
+          gap: 8px;
         }
         
-        .eject-button svg {
-          width: 16px;
-          height: 16px;
-        }
-        
-        .eject-button:hover {
-          background: #3d424b;
-          border-color: #4dabf7;
-          color: #4dabf7;
-          transform: translateX(-50%) scale(1.1);
-        }
-        
-        .settings-button {
-          position: absolute;
-          bottom: calc(100% + 8px);
-          left: 50%;
-          transform: translateX(50%) scale(0);
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
-          background: #2d323b;
-          border: 2px solid #444;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #aaa;
-          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-          opacity: 0;
-          pointer-events: none;
-          box-sizing: border-box;
-        }
-        
-        .settings-button svg {
-          width: 16px;
-          height: 16px;
-        }
-        
-        .record-button-wrapper:hover .settings-button {
-          transform: translateX(50%) scale(1);
-          opacity: 1;
-          pointer-events: auto;
-        }
-        
-        .settings-button:hover {
-          background: #3d424b;
-          border-color: #4dabf7;
-          color: #4dabf7;
-          transform: translateX(50%) scale(1.1) !important;
-        }
-        
-                .current-recording-display {
-          animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-          width: 100%;
-          max-width: 750px;
-        }
-
-        .current-recording-display .rec-card {
-          width: 100%;
-          max-width: 750px;
-          box-sizing: border-box;
-        }
-        
-        @keyframes slideIn {
-          from { opacity: 0; transform: translateX(-10px); }
-          to { opacity: 1; transform: translateX(0); }
-        }
         .record-toggle { 
           width: 40px; height: 40px; border-radius: 50%; border: 3px solid #333; 
           background: none; cursor: pointer; transition: all 0.3s; 
@@ -1607,6 +1768,48 @@ export default function HomePage() {
         @keyframes pulsateButton { 
           0%, 100% { transform: scale(1); opacity: 1; } 
           50% { transform: scale(1.08); opacity: 0.85; } 
+        }
+        
+        .eject-button, .settings-button {
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          background: #2d323b;
+          border: 2px solid #444;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #aaa;
+          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+          box-sizing: border-box;
+          flex-shrink: 0;
+        }
+        
+        .eject-button svg, .settings-button svg {
+          width: 20px;
+          height: 20px;
+        }
+        
+        .eject-button:hover, .settings-button:hover {
+          background: #3d424b;
+          border-color: #4dabf7;
+          color: #4dabf7;
+          transform: scale(1.1);
+          box-shadow: 0 0 15px rgba(77, 171, 247, 0.3);
+        }
+        
+        .eject-button {
+          background: #1a1d23;
+          border-color: #4dabf7;
+          color: #4dabf7;
+          box-shadow: 0 0 10px rgba(77, 171, 247, 0.2);
+        }
+        
+        .eject-button:hover {
+          background: #4dabf7;
+          color: #0f1115;
+          box-shadow: 0 0 20px rgba(77, 171, 247, 0.5);
         }
         
         .recording-timer { color: #fa5252 !important; font-weight: 600; }

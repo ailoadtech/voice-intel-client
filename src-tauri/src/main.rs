@@ -1,5 +1,6 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 // Enable console window temporarily for debugging
-// #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod audio;
 mod whisper;
@@ -59,6 +60,29 @@ async fn save_and_queue_recording(samples: Vec<i16>) -> Result<String, String> {
 #[tauri::command]
 async fn log_frontend(message: String) -> Result<(), String> {
     logger::Logger::log(&format!("[FRONTEND] {}", message));
+    Ok(())
+}
+
+#[tauri::command]
+async fn get_config() -> Result<config::AppConfig, String> {
+    match config::AppConfig::load_or_create() {
+        Ok(cfg) => Ok(cfg),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+#[tauri::command]
+async fn save_config(config_data: config::AppConfig) -> Result<(), String> {
+    use std::fs;
+    use crate::logger::get_app_dir;
+    
+    let config_path = get_app_dir().join("config.json");
+    let content = serde_json::to_string_pretty(&config_data)
+        .map_err(|e| format!("Failed to serialize config: {}", e))?;
+    
+    fs::write(&config_path, content)
+        .map_err(|e| format!("Failed to write config file: {}", e))?;
+    
     Ok(())
 }
 
@@ -464,7 +488,7 @@ fn main() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![save_and_queue_recording, get_recording_audio, delete_recording, check_model, get_all_recordings, get_prompt_templates, get_prompt_template_text, re_enrich_with_prompt, log_frontend])
+.invoke_handler(tauri::generate_handler![save_and_queue_recording, get_recording_audio, delete_recording, check_model, get_all_recordings, get_prompt_templates, get_prompt_template_text, re_enrich_with_prompt, log_frontend, get_config, save_config])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
