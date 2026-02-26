@@ -99,22 +99,19 @@ async fn inner_enrich_and_save(
                             fs::write(&out_path, &enriched)?;
                             return Ok(enriched);
                         } else {
-                            eprintln!("OpenRouter returned no choices. Saving original transcript.");
-                            fs::write(&out_path, transcript)?;
-                            return Ok(transcript.to_string());
+                            eprintln!("OpenRouter returned no choices. enrichment failed.");
+                            return Err("OpenRouter returned no choices".into());
                         }
                     }
                     Err(e) => {
-                        eprintln!("Failed to parse OpenRouter response: {}. Saving original transcript.", e);
-                        fs::write(&out_path, transcript)?;
-                        return Ok(transcript.to_string());
+                        eprintln!("Failed to parse OpenRouter response: {}", e);
+                        return Err(e.into());
                     }
                 }
             }
             Err(e) => {
-                eprintln!("Failed to connect to OpenRouter: {}. Saving original transcript.", e);
-                fs::write(&out_path, transcript)?;
-                return Ok(transcript.to_string());
+                eprintln!("Failed to connect to OpenRouter: {}", e);
+                return Err(e.into());
             }
         }
     }
@@ -138,16 +135,14 @@ async fn inner_enrich_and_save(
                     Ok(enriched)
                 }
                 Err(e) => {
-                    eprintln!("Failed to parse LLM response: {}. Saving original transcript.", e);
-                    fs::write(&out_path, transcript)?;
-                    Ok(transcript.to_string())
+                    eprintln!("Failed to parse LLM response: {}", e);
+                    return Err(e.into());
                 }
             }
         }
         Err(e) => {
-            eprintln!("Failed to connect to LLM at {}: {}. Saving original transcript.", config.url, e);
-            fs::write(&out_path, transcript)?;
-            Ok(transcript.to_string())
+            eprintln!("Failed to connect to LLM at {}: {}", config.url, e);
+            return Err(e.into());
         }
     }
 }

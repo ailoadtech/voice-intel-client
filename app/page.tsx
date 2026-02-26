@@ -108,6 +108,7 @@ export default function HomePage() {
   const [isModelAvailable, setIsModelAvailable] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true); // Start as true to show splash screen
   const [isTauriMode, setIsTauriMode] = useState<boolean | null>(null); // null = not yet determined
+  const [isHistoryVisible, setIsHistoryVisible] = useState(false); // State to control history visibility (hidden by default)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -813,7 +814,7 @@ export default function HomePage() {
         {/* History Stack and Record Button - Bottom Layout */}
         <div className="controls-and-history">
           {/* History Stack - saved recordings only */}
-          <div className="history-stack custom-scrollbar">
+          <div className={`history-stack custom-scrollbar ${!isHistoryVisible ? 'hidden' : ''}`} style={!isHistoryVisible ? { display: 'none' } : undefined}>
             {/* Show all saved recordings */}
             {recordings.map((rec) => (
             <div key={rec.id} className="rec-item">
@@ -973,19 +974,43 @@ export default function HomePage() {
             </div>
           ))}
 
-
           </div>
 
           {/* Record Button and Current Recording - Bottom Left */}
           <div className="record-section">
-            <button
-              onClick={isRecording ? stopRecording : startRecording}
-              className={`record-toggle ${isRecording ? 'recording' : 'idle'}`}
-              disabled={isModelLoading}
-              title={isRecording ? "Aufnahme stoppen Ctrl+Shift+Space" : "Aufnahme starten Ctrl+Shift+Space"}
-            >
-              <div className="record-indicator"></div>
-            </button>
+            <div className="record-button-wrapper">
+              <button
+                onClick={isRecording ? stopRecording : startRecording}
+                className={`record-toggle ${isRecording ? 'recording' : 'idle'}`}
+                disabled={isModelLoading}
+                title={isRecording ? "Aufnahme stoppen Ctrl+Shift+Space" : "Aufnahme starten Ctrl+Shift+Space"}
+              >
+                <div className="record-indicator"></div>
+              </button>
+              <button 
+                className="eject-button" 
+                title="Aufnahme auswerfen"
+                onClick={() => setIsHistoryVisible(!isHistoryVisible)}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 3v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V3"></path>
+                  <path d="M20 3v6a2 2 0 0 0 2 2h4"></path>
+                  <path d="M12 21h-4"></path>
+                  <path d="M12 15V9"></path>
+                  <path d="M8 9l4-3 4 3"></path>
+                </svg>
+              </button>
+              <button 
+                className="settings-button" 
+                title="Einstellungen"
+                onClick={() => console.log("Settings clicked")}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="3"></circle>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+              </button>
+            </div>
             
             {/* Show current recording next to button */}
             {isRecording && (
@@ -1106,8 +1131,6 @@ export default function HomePage() {
         .panel-title { color: #4dabf7; font-size: 13px; text-transform: uppercase; letter-spacing: 2.5px; margin-bottom: 15px; font-weight: 700; }
         .panel-body { font-size: 17px; line-height: 1.6; color: #d1d5db; word-wrap: break-word; overflow-wrap: break-word; white-space: pre-wrap; }
         
-
-        
         /* Main Layout */
         .main-content {
           width: 100%;
@@ -1218,6 +1241,11 @@ export default function HomePage() {
           width: 100%;
           max-width: 750px;
           box-sizing: border-box;
+          transition: all 0.3s ease;
+        }
+
+        .history-stack.hidden {
+          display: none;
         }
 
         .controls-bar {
@@ -1461,7 +1489,93 @@ export default function HomePage() {
           z-index: 100;
         }
         
+        .record-button-wrapper {
+          position: relative;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        
+        .eject-button {
+          position: absolute;
+          bottom: calc(100% + 8px);
+          left: 50%;
+          transform: translateX(-50%) scale(0);
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          background: #2d323b;
+          border: 2px solid #444;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #aaa;
+          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+          opacity: 0;
+          pointer-events: none;
+          box-sizing: border-box;
+        }
+        
+        .eject-button svg {
+          width: 16px;
+          height: 16px;
+        }
+        
+        .record-button-wrapper:hover .eject-button {
+          transform: translateX(-50%) scale(1);
+          opacity: 1;
+          pointer-events: auto;
+        }
+        
+        .eject-button:hover {
+          background: #3d424b;
+          border-color: #4dabf7;
+          color: #4dabf7;
+          transform: translateX(-50%) scale(1.1) !important;
+        }
+        
         .current-recording-display {
+        .settings-button {
+          position: absolute;
+          bottom: calc(100% + 8px);
+          left: 50%;
+          transform: translateX(50%) scale(0);
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          background: #2d323b;
+          border: 2px solid #444;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #aaa;
+          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+          opacity: 0;
+          pointer-events: none;
+          box-sizing: border-box;
+        }
+        
+        .settings-button svg {
+          width: 16px;
+          height: 16px;
+        }
+        
+        .record-button-wrapper:hover .settings-button {
+          transform: translateX(50%) scale(1);
+          opacity: 1;
+          pointer-events: auto;
+        }
+        
+        .settings-button:hover {
+          background: #3d424b;
+          border-color: #4dabf7;
+          color: #4dabf7;
+          transform: translateX(50%) scale(1.1) !important;
+        }
+        
+        
           animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
           width: 100%;
           max-width: 750px;
