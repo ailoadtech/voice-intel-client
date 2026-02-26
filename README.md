@@ -219,5 +219,5 @@ Die Aufgabe ist meine erste Application rein mit KI und ich habe dabei sehr viel
 
 ## Credits
 
-ailoadtech made this with joy and Qwen3-Max Thinking, Google Antigravity and Kiro
+ailoadtech made this with joy and Qwen3-Max Thinking, Google Antigravity and Kiro, Verdent Minimax, Opus, Stepfun
 ....-/. ...- . .-. .-.. .- ... -
