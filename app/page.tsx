@@ -1364,7 +1364,7 @@ export default function HomePage() {
         .rec-time { font-size: 13px; color: #aaa; font-weight: 500; flex-shrink: 0; }
         .rec-footer { display: flex; align-items: center; gap: 8px; height: 100%; }
         .rec-footer-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
-        .rec-play-btn, .rec-delete-btn { background: none; border: none; color: #aaa; cursor: pointer; font-size: 18px; transition: all 0.2s; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-sizing: border-box; }
+        .rec-play-btn, .rec-delete-btn { background: none; border: none; color: #aaa; cursor: pointer; font-size: 18px; line-height: 26px; transition: all 0.2s; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-sizing: border-box; }
         .rec-play-btn:hover { color: #4dabf7; transform: scale(1.1); }
         .rec-play-btn.playing { color: #aaa; }
         .rec-play-btn.playing:hover { color: #4dabf7; transform: scale(1.1); }
@@ -1446,6 +1446,11 @@ export default function HomePage() {
           transition: all 0.2s;
           flex-shrink: 0;
           max-width: 100px;
+          height: 26px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-sizing: border-box;
         }
         .rec-prompt-dropdown:hover {
           border-color: #4dabf7;
@@ -1500,7 +1505,7 @@ export default function HomePage() {
           position: absolute;
           bottom: calc(100% + 8px);
           left: 50%;
-          transform: translateX(-50%) scale(0);
+          transform: translateX(-50%);
           width: 32px;
           height: 32px;
           border-radius: 50%;
@@ -1512,8 +1517,8 @@ export default function HomePage() {
           justify-content: center;
           color: #aaa;
           transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-          opacity: 0;
-          pointer-events: none;
+          opacity: 1;
+          pointer-events: auto;
           box-sizing: border-box;
         }
         
@@ -1522,20 +1527,13 @@ export default function HomePage() {
           height: 16px;
         }
         
-        .record-button-wrapper:hover .eject-button {
-          transform: translateX(-50%) scale(1);
-          opacity: 1;
-          pointer-events: auto;
-        }
-        
         .eject-button:hover {
           background: #3d424b;
           border-color: #4dabf7;
           color: #4dabf7;
-          transform: translateX(-50%) scale(1.1) !important;
+          transform: translateX(-50%) scale(1.1);
         }
         
-        .current-recording-display {
         .settings-button {
           position: absolute;
           bottom: calc(100% + 8px);
@@ -1575,7 +1573,7 @@ export default function HomePage() {
           transform: translateX(50%) scale(1.1) !important;
         }
         
-        
+                .current-recording-display {
           animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
           width: 100%;
           max-width: 750px;
