@@ -1,15 +1,103 @@
 // src-tauri/src/logger.rs
 use std::path::PathBuf;
+use std::fs;
+use std::path::Path;
 use std::fs::OpenOptions;
 use std::io::Write;
 
 pub fn get_app_dir() -> PathBuf {
+    // Determine user-specific data directory based on OS
+    let data_dir = if cfg!(target_os = "windows") {
+        // Windows: %APPDATA%\VoiceIntel
+        std::env::var("APPDATA")
+            .map(|p| PathBuf::from(p).join("VoiceIntel"))
+            .ok()
+    } else if cfg!(target_os = "macos") {
+        // macOS: ~/Library/Application Support/VoiceIntel
+        std::env::var("HOME")
+            .map(|p| PathBuf::from(p).join("Library/Application Support/VoiceIntel"))
+            .ok()
+    } else {
+        // Linux/Unix: $XDG_DATA_HOME or ~/.local/share/VoiceIntel
+        if let Ok(xdg) = std::env::var("XDG_DATA_HOME") {
+            Some(PathBuf::from(xdg).join("VoiceIntel"))
+        } else if let Ok(home) = std::env::var("HOME") {
+            Some(PathBuf::from(home).join(".local/share/VoiceIntel"))
+        } else {
+            None
+        }
+    };
+    
+    let mut app_dir = match data_dir {
+        Some(dir) => dir,
+        None => {
+            // Fallback to executable directory
+            if let Ok(exe_path) = std::env::current_exe() {
+                if let Some(exe_dir) = exe_path.parent() {
+                    exe_dir.to_path_buf()
+                } else {
+                    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+                }
+            } else {
+                std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+            }
+        }
+    };
+    
+    // Ensure the directory exists
+    if !app_dir.exists() {
+        let _ = fs::create_dir_all(&app_dir);
+    }
+    
+    // Migrate data from old location (executable directory) if it exists and is different
     if let Ok(exe_path) = std::env::current_exe() {
         if let Some(exe_dir) = exe_path.parent() {
-            return exe_dir.to_path_buf();
+            let old_dir = exe_dir.to_path_buf();
+            if old_dir != app_dir {
+                // Helper function to copy directory recursively
+                fn copy_dir_all(src: &Path, dst: &Path) -> std::io::Result<()> {
+                    if !dst.exists() {
+                        fs::create_dir_all(dst)?;
+                    }
+                    for entry in fs::read_dir(src)? {
+                        let entry = entry?;
+                        let ty = entry.file_type()?;
+                        let src_path = entry.path();
+                        let dst_path = dst.join(entry.file_name());
+                        if ty.is_dir() {
+                            copy_dir_all(&src_path, &dst_path)?;
+                        } else {
+                            fs::copy(&src_path, &dst_path)?;
+                        }
+                    }
+                    Ok(())
+                }
+                
+                // Migrate config.json
+                let old_config = old_dir.join("config.json");
+                let new_config = app_dir.join("config.json");
+                if old_config.exists() && !new_config.exists() {
+                    let _ = fs::copy(&old_config, &new_config);
+                }
+                
+                // Migrate models directory
+                let old_models = old_dir.join("models");
+                let new_models = app_dir.join("models");
+                if old_models.exists() && old_models.is_dir() && !new_models.exists() {
+                    let _ = copy_dir_all(&old_models, &new_models);
+                }
+                
+                // Migrate recordings directory
+                let old_recordings = old_dir.join("recordings");
+                let new_recordings = app_dir.join("recordings");
+                if old_recordings.exists() && old_recordings.is_dir() && !new_recordings.exists() {
+                    let _ = copy_dir_all(&old_recordings, &new_recordings);
+                }
+            }
         }
     }
-    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+    
+    app_dir
 }
 
 pub struct Logger;

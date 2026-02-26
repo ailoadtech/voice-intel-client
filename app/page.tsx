@@ -954,7 +954,7 @@ export default function HomePage() {
                     )}
 
                     <button onClick={() => deleteRecording(rec.id)} className="rec-delete-btn" title="Löschen">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16.2" height="16.2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="3 6 5 6 21 6"></polyline>
                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                         <line x1="10" y1="11" x2="10" y2="17"></line>
@@ -979,20 +979,20 @@ export default function HomePage() {
                     {/* Transcription block */}
                     {expandedTranscription === rec.id && rec.transcription && (
                       <div className="rec-transcription-inline">
-                        <div className="rec-transcription-header">
+                        <div className="rec-transcription-text">
+                          {rec.transcription}
+                        </div>
+                        <div className="rec-transcription-footer">
                           <button 
                             className="rec-copy-btn"
                             onClick={() => navigator.clipboard.writeText(rec.transcription || "")}
                             title="In Zwischenablage kopieren"
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12.6" height="12.6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                               <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                             </svg>
                           </button>
-                        </div>
-                        <div className="rec-transcription-text">
-                          {rec.transcription}
                         </div>
                       </div>
                     )}
@@ -1000,7 +1000,10 @@ export default function HomePage() {
                     {/* Enrichment block */}
                     {expandedEnrichment === rec.id && rec.enrichment && (
                       <div className="rec-transcription-inline">
-                        <div className="rec-transcription-header">
+                        <div className="rec-transcription-text">
+                          {rec.enrichment}
+                        </div>
+                        <div className="rec-transcription-footer">
                           <button 
                             className="rec-copy-btn"
                             onClick={() => navigator.clipboard.writeText(rec.enrichment || "")}
@@ -1011,9 +1014,6 @@ export default function HomePage() {
                               <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                             </svg>
                           </button>
-                        </div>
-                        <div className="rec-transcription-text">
-                          {rec.enrichment}
                         </div>
                       </div>
                     )}
@@ -1035,7 +1035,7 @@ export default function HomePage() {
                     onClick={() => setIsSettingsVisible(false)}
                     title="Schließen"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <line x1="18" y1="6" x2="6" y2="18"></line>
                       <line x1="6" y1="6" x2="18" y2="18"></line>
                     </svg>
@@ -1230,7 +1230,7 @@ export default function HomePage() {
                 title="Aufnahmen"
                 onClick={() => setIsHistoryVisible(!isHistoryVisible)}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
                   <line x1="12" y1="11" x2="12" y2="17"></line>
                   <line x1="9" y1="14" x2="15" y2="14"></line>
@@ -1255,7 +1255,7 @@ export default function HomePage() {
                   }
                 }}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="3"></circle>
                   <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                 </svg>
@@ -1575,14 +1575,14 @@ export default function HomePage() {
           to { opacity: 1; transform: translateY(0); }
         }
 
-        .rec-transcription-header {
+        .rec-transcription-footer {
           font-size: 12px;
           color: #4dabf7;
-          margin-bottom: 8px;
+          margin-top: 8px;
           font-weight: 600;
           display: flex;
           align-items: center;
-          justify-content: space-between;
+          justify-content: flex-end;
         }
 
         .rec-copy-btn {
@@ -1611,16 +1611,58 @@ export default function HomePage() {
           word-wrap: break-word;
         }
         
-        .rec-time { font-size: 13px; color: #aaa; font-weight: 500; flex-shrink: 0; }
-        .rec-footer { display: flex; align-items: center; gap: 8px; height: 100%; }
-        .rec-footer-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+        .rec-time {
+          font-size: 13px;
+          color: #aaa;
+          font-weight: 500;
+          width: 150px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          flex-shrink: 0;
+        }
+        .rec-footer {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          height: 100%;
+          position: relative;
+          padding-right: 220px;
+        }
+        .rec-footer-actions {
+          position: absolute;
+          right: 0;
+          top: 50%;
+          transform: translateY(-50%);
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          max-width: 220px;
+          justify-content: flex-end;
+        }
         .rec-play-btn, .rec-delete-btn { background: none; border: none; color: #aaa; cursor: pointer; font-size: 18px; line-height: 26px; transition: all 0.2s; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-sizing: border-box; }
         .rec-play-btn:hover { color: #4dabf7; transform: scale(1.1); }
         .rec-play-btn.playing { color: #aaa; }
         .rec-play-btn.playing:hover { color: #4dabf7; transform: scale(1.1); }
         .rec-delete-btn:hover { color: #fa5252; transform: scale(1.1); }
-        .rec-duration { font-family: monospace; font-size: 12px; color: #666; flex-shrink: 0; }
-        .rec-text-preview { flex: 1; font-size: 13px; color: #777; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; max-width: 400px; text-align: left; }
+        .rec-duration {
+          font-family: monospace;
+          font-size: 12px;
+          color: #666;
+          width: 50px;
+          text-align: center;
+          flex-shrink: 0;
+        }
+        .rec-text-preview {
+          flex: 1;
+          font-size: 13px;
+          color: #777;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          min-width: 0;
+          text-align: left;
+        }
         
         /* Inline action buttons inside rec-card */
         .rec-action-btn-inline { 
