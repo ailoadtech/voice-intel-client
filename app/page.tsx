@@ -103,7 +103,8 @@ export default function HomePage() {
   const [selectedPrompt, setSelectedPrompt] = useState<string>("Prompt 1");
   const [promptTemplateText, setPromptTemplateText] = useState<string>("");
   const [enrichingId, setEnrichingId] = useState<string | null>(null);
-  const [expandedRecording, setExpandedRecording] = useState<string | null>(null);
+  const [expandedTranscription, setExpandedTranscription] = useState<string | null>(null);
+  const [expandedEnrichment, setExpandedEnrichment] = useState<string | null>(null);
   const [isModelAvailable, setIsModelAvailable] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true); // Start as true to show splash screen
   const [isTauriMode, setIsTauriMode] = useState<boolean | null>(null); // null = not yet determined
@@ -839,9 +840,14 @@ export default function HomePage() {
                     {rec.transcription && (
                       <button
                         onClick={() => {
-                          setExpandedRecording(expandedRecording === rec.id ? null : rec.id);
+                          if (expandedTranscription === rec.id) {
+                            setExpandedTranscription(null);
+                          } else {
+                            setExpandedTranscription(rec.id);
+                            setExpandedEnrichment(null);
+                          }
                         }}
-                        className={`rec-action-btn-inline ${expandedRecording === rec.id ? 'active' : ''}`}
+                        className={`rec-action-btn-inline ${expandedTranscription === rec.id ? 'active' : ''}`}
                         title="Transkription anzeigen"
                       >
                         <img src="/transkription.png" alt="A" />
@@ -852,9 +858,14 @@ export default function HomePage() {
                       <>
                         <button
                           onClick={() => {
-                            setExpandedRecording(expandedRecording === rec.id ? null : rec.id);
+                            if (expandedEnrichment === rec.id) {
+                            setExpandedEnrichment(null);
+                          } else {
+                            setExpandedEnrichment(rec.id);
+                            setExpandedTranscription(null);
+                          }
                           }}
-                          className={`rec-action-btn-inline ${expandedRecording === rec.id ? 'active' : ''}`}
+                          className={`rec-action-btn-inline ${expandedEnrichment === rec.id ? 'active' : ''}`}
                           title="Transkription AI"
                         >
                           <img src="/transkription-ai.png" alt="AI" />
@@ -914,29 +925,31 @@ export default function HomePage() {
               </div>
 
               {/* Inline Transcription Display */}
-              {expandedRecording === rec.id && (
+              {(expandedTranscription === rec.id || expandedEnrichment === rec.id) && (
                   <>
                     {/* Transcription block */}
-                    <div className="rec-transcription-inline">
-                      <div className="rec-transcription-header">
-                        <button 
-                          className="rec-copy-btn"
-                          onClick={() => navigator.clipboard.writeText(rec.transcription || "")}
-                          title="In Zwischenablage kopieren"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                          </svg>
-                        </button>
+                    {expandedTranscription === rec.id && rec.transcription && (
+                      <div className="rec-transcription-inline">
+                        <div className="rec-transcription-header">
+                          <button 
+                            className="rec-copy-btn"
+                            onClick={() => navigator.clipboard.writeText(rec.transcription || "")}
+                            title="In Zwischenablage kopieren"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                          </button>
+                        </div>
+                        <div className="rec-transcription-text">
+                          {rec.transcription}
+                        </div>
                       </div>
-                      <div className="rec-transcription-text">
-                        {rec.transcription}
-                      </div>
-                    </div>
+                    )}
 
                     {/* Enrichment block */}
-                    {rec.enrichment && (
+                    {expandedEnrichment === rec.id && rec.enrichment && (
                       <div className="rec-transcription-inline">
                         <div className="rec-transcription-header">
                           <button 
@@ -1203,7 +1216,7 @@ export default function HomePage() {
           margin: 0;
           padding-bottom: 70px; /* Space for fixed record button at bottom */
           width: 100%;
-          max-width: 550px;
+          max-width: 750px;
           box-sizing: border-box;
         }
 
@@ -1226,7 +1239,7 @@ export default function HomePage() {
           flex-direction: column;
           align-items: flex-start; 
           width: 100%;
-          max-width: 550px;
+          max-width: 750px;
           animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
           flex-shrink: 0;
         }
@@ -1242,7 +1255,7 @@ export default function HomePage() {
           padding: 8px 18px; 
           border-radius: 12px; 
           width: 100%; 
-          max-width: 550px;
+          max-width: 750px;
           box-shadow: 0 4px 15px rgba(0,0,0,0.4);
           position: relative;
           overflow: hidden;
@@ -1274,7 +1287,7 @@ export default function HomePage() {
           padding: 12px;
           margin-top: 8px;
           width: 100%;
-          max-width: 550px;
+          max-width: 750px;
           box-sizing: border-box;
           animation: slideDown 0.2s ease-out;
         }
@@ -1329,7 +1342,7 @@ export default function HomePage() {
         .rec-play-btn.playing:hover { color: #4dabf7; transform: scale(1.1); }
         .rec-delete-btn:hover { color: #fa5252; transform: scale(1.1); }
         .rec-duration { font-family: monospace; font-size: 12px; color: #666; flex-shrink: 0; }
-        .rec-text-preview { flex: 1; font-size: 13px; color: #777; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; max-width: 200px; text-align: left; }
+        .rec-text-preview { flex: 1; font-size: 13px; color: #777; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; max-width: 400px; text-align: left; }
         
         /* Inline action buttons inside rec-card */
         .rec-action-btn-inline { 
@@ -1346,7 +1359,11 @@ export default function HomePage() {
           box-sizing: border-box;
         }
         .rec-action-btn-inline.active {
-          background: #4dabf7;
+          background: transparent;
+          border-color: #4dabf7;
+        }
+        .rec-action-btn-inline.active:hover {
+          background: transparent;
           border-color: #4dabf7;
         }
         .rec-action-btn-inline:hover { 
@@ -1447,12 +1464,12 @@ export default function HomePage() {
         .current-recording-display {
           animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
           width: 100%;
-          max-width: 550px;
+          max-width: 750px;
         }
 
         .current-recording-display .rec-card {
           width: 100%;
-          max-width: 550px;
+          max-width: 750px;
           box-sizing: border-box;
         }
         
