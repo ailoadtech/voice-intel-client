@@ -3,7 +3,6 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { app } from "@tauri-apps/api/app";
 
 // Global logging function that writes to window for debugging
 const debugLog = (message: string) => {
@@ -1268,7 +1267,7 @@ export default function HomePage() {
                onClick={async () => {
                  if (isTauriMode) {
                    try {
-                     await app.exit();
+                     await (window as any).__TAURI__.app.exit();
                    } catch (error) {
                      console.error("Failed to exit application:", error);
                    }
