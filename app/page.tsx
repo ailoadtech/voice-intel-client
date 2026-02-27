@@ -1265,12 +1265,15 @@ export default function HomePage() {
                className="exit-button"
                title="Anwendung beenden"
                onClick={async () => {
-                 if (isTauriMode) {
+                 // Direct check for Tauri app API
+                 if (typeof window !== "undefined" && (window as any).__TAURI__ && (window as any).__TAURI__.app) {
                    try {
                      await (window as any).__TAURI__.app.exit();
                    } catch (error) {
                      console.error("Failed to exit application:", error);
                    }
+                 } else {
+                   console.log("Not in Tauri mode or app API not available");
                  }
                }}
              >
@@ -1546,12 +1549,12 @@ export default function HomePage() {
           to { opacity: 1; transform: translateY(0); }
         }
 
-        .rec-card { 
-          background: #1a1d23; 
-          border: 1px solid #333; 
-          padding: 8px 18px; 
-          border-radius: 12px; 
-          width: 100%; 
+        .rec-card {
+          background: #1a1d23;
+          border: 1px solid #333;
+          padding: 8px 18px;
+          border-radius: 12px;
+          width: 100%;
           max-width: 750px;
           box-shadow: 0 4px 15px rgba(0,0,0,0.4);
           position: relative;
@@ -1560,6 +1563,9 @@ export default function HomePage() {
           align-items: center;
           height: 50px;
           box-sizing: border-box;
+        }
+        .rec-card.recording-active {
+          max-width: 500px;
         }
 
         .playback-progress-container {
@@ -1818,9 +1824,9 @@ export default function HomePage() {
           gap: 8px;
         }
         
-        .record-toggle { 
-          width: 40px; height: 40px; border-radius: 50%; border: 3px solid #333; 
-          background: none; cursor: pointer; transition: all 0.3s; 
+        .record-toggle {
+          width: 48px; height: 48px; border-radius: 50%; border: 3px solid #333;
+          background: none; cursor: pointer; transition: all 0.3s;
           display: flex; align-items: center; justify-content: center;
           box-sizing: border-box;
           transform-origin: center center;
@@ -1830,8 +1836,8 @@ export default function HomePage() {
         .record-toggle:not(:disabled):hover { border-color: #ffffff; transform: scale(1.05) !important; box-shadow: 0 0 15px rgba(255, 255, 255, 0.2); }
         .record-toggle.recording { background: #fa5252; border-color: #fa5252; box-shadow: 0 0 25px rgba(250, 82, 82, 0.5); animation: none; transform: scale(1); }
         .record-toggle:disabled { opacity: 0.3; cursor: not-allowed; animation: none; transform: scale(1); }
-        .record-indicator { width: 16px; height: 16px; background: #fa5252; border-radius: 50%; transition: all 0.3s; }
-        .record-toggle.recording .record-indicator { width: 12px; height: 12px; background: white; border-radius: 3px; }
+        .record-indicator { width: 19px; height: 19px; background: #fa5252; border-radius: 50%; transition: all 0.3s; }
+        .record-toggle.recording .record-indicator { width: 14px; height: 14px; background: white; border-radius: 3px; }
         
         @keyframes pulsateButton { 
           0%, 100% { transform: scale(1); opacity: 1; } 
