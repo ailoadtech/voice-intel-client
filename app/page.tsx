@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { app } from "@tauri-apps/api/app";
 
 // Global logging function that writes to window for debugging
 const debugLog = (message: string) => {
@@ -885,7 +886,7 @@ export default function HomePage() {
                         <div className="standby-circle-inline"></div>
                       </div>
                     )}
-
+          
                     {rec.transcription && (
                       <button
                         onClick={() => {
@@ -902,57 +903,58 @@ export default function HomePage() {
                         <img src="/transkription.png" alt="A" />
                       </button>
                     )}
-
-                    {rec.enrichment && (
-                      <>
-                        <button
-                          onClick={() => {
-                            if (expandedEnrichment === rec.id) {
+          
+                    <button
+                      onClick={() => {
+                        if (rec.enrichment) {
+                          if (expandedEnrichment === rec.id) {
                             setExpandedEnrichment(null);
                           } else {
                             setExpandedEnrichment(rec.id);
                             setExpandedTranscription(null);
                           }
-                          }}
-                          className={`rec-action-btn-inline ${expandedEnrichment === rec.id ? 'active' : ''}`}
-                          title="Transkription AI"
-                        >
-                          <img src="/transkription-ai.png" alt="AI" />
-                        </button>
-                        
-                        {/* Prompt Selector Dropdown */}
-                        {isTauriMode && promptTemplates.length > 0 && (
-                          <select 
-                            value={selectedPrompt} 
-                            onChange={(e) => setSelectedPrompt(e.target.value)}
-                            className="rec-prompt-dropdown"
-                            title={promptTemplateText}
-                          >
-                            {promptTemplates.map((template) => (
-                              <option key={template} value={template} title={template === selectedPrompt ? promptTemplateText : ""}>
-                                {template}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                        
-                        <button
-                          onClick={() => reEnrichWithPrompt(rec.id)}
-                          className="rec-refresh-btn-inline"
-                          disabled={enrichingId === rec.id}
-                          title="Neu anreichern mit aktuellem Prompt"
-                        >
-                          {enrichingId === rec.id ? (
-                            <div className="button-spinner-inline"></div>
-                          ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
-                            </svg>
-                          )}
-                        </button>
-                      </>
-                    )}
-
+                        }
+                      }}
+                      className={`rec-action-btn-inline ${rec.enrichment && expandedEnrichment === rec.id ? 'active' : ''} ${!rec.enrichment ? 'invisible' : ''}`}
+                      title={rec.enrichment ? "Transkription AI" : ""}
+                      disabled={!rec.enrichment}
+                    >
+                      <img src="/transkription-ai.png" alt="AI" />
+                    </button>
+          
+                    <select
+                      value={selectedPrompt}
+                      onChange={(e) => setSelectedPrompt(e.target.value)}
+                      className={`rec-prompt-dropdown ${!(rec.enrichment && isTauriMode && promptTemplates.length > 0) ? 'invisible' : ''}`}
+                      title={promptTemplateText}
+                      disabled={!(rec.enrichment && isTauriMode && promptTemplates.length > 0)}
+                    >
+                      {promptTemplates.map((template) => (
+                        <option key={template} value={template} title={template === selectedPrompt ? promptTemplateText : ""}>
+                          {template}
+                        </option>
+                      ))}
+                    </select>
+          
+                    <button
+                      onClick={() => {
+                        if (rec.enrichment && !enrichingId) {
+                          reEnrichWithPrompt(rec.id);
+                        }
+                      }}
+                      className={`rec-refresh-btn-inline ${!rec.enrichment ? 'invisible' : ''}`}
+                      disabled={!rec.enrichment || enrichingId === rec.id}
+                      title={rec.enrichment ? "Neu anreichern mit aktuellem Prompt" : ""}
+                    >
+                      {enrichingId === rec.id ? (
+                        <div className="button-spinner-inline"></div>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                        </svg>
+                      )}
+                    </button>
+          
                     <button onClick={() => deleteRecording(rec.id)} className="rec-delete-btn" title="Löschen">
                       <svg xmlns="http://www.w3.org/2000/svg" width="16.2" height="16.2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="3 6 5 6 21 6"></polyline>
@@ -1225,12 +1227,12 @@ export default function HomePage() {
               >
                 <div className="record-indicator"></div>
               </button>
-              <button 
+              <button
                 className="eject-button"
                 title="Aufnahmen"
                 onClick={() => setIsHistoryVisible(!isHistoryVisible)}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16.2" height="16.2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
                   <line x1="12" y1="11" x2="12" y2="17"></line>
                   <line x1="9" y1="14" x2="15" y2="14"></line>
@@ -1255,12 +1257,30 @@ export default function HomePage() {
                   }
                 }}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="3"></circle>
-                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                </svg>
-              </button>
-            </div>
+                <svg xmlns="http://www.w3.org/2000/svg" width="12.6" height="12.6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                 <circle cx="12" cy="12" r="3"></circle>
+                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+               </svg>
+             </button>
+             <button
+               className="exit-button"
+               title="Anwendung beenden"
+               onClick={async () => {
+                 if (isTauriMode) {
+                   try {
+                     await app.exit();
+                   } catch (error) {
+                     console.error("Failed to exit application:", error);
+                   }
+                 }
+               }}
+             >
+               <svg xmlns="http://www.w3.org/2000/svg" width="12.6" height="12.6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                 <line x1="18" y1="6" x2="6" y2="18"></line>
+                 <line x1="6" y1="6" x2="18" y2="18"></line>
+               </svg>
+             </button>
+           </div>
             
             {/* Show current recording next to button */}
             {isRecording && (
@@ -1737,7 +1757,7 @@ export default function HomePage() {
           cursor: pointer;
           transition: all 0.2s;
           flex-shrink: 0;
-          max-width: 100px;
+          width: 80px;
           height: 26px;
           display: flex;
           align-items: center;
@@ -1752,7 +1772,14 @@ export default function HomePage() {
           outline: none;
           border-color: #4dabf7;
         }
-
+        
+        .rec-action-btn-inline.invisible,
+        .rec-refresh-btn-inline.invisible,
+        .rec-prompt-dropdown.invisible {
+          visibility: hidden;
+          pointer-events: none;
+        }
+        
         .rec-processing-inline {
           width: 26px; height: 26px; 
           display: flex; align-items: center; justify-content: center;
@@ -1812,7 +1839,7 @@ export default function HomePage() {
           50% { transform: scale(1.08); opacity: 0.85; } 
         }
         
-        .eject-button, .settings-button {
+        .eject-button, .settings-button, .exit-button {
           width: 40px;
           height: 40px;
           border-radius: 50%;
@@ -1828,30 +1855,17 @@ export default function HomePage() {
           flex-shrink: 0;
         }
         
-        .eject-button svg, .settings-button svg {
+        .eject-button svg, .settings-button svg, .exit-button svg {
           width: 20px;
           height: 20px;
         }
         
-        .eject-button:hover, .settings-button:hover {
+        .eject-button:hover, .settings-button:hover, .exit-button:hover {
           background: #3d424b;
           border-color: #4dabf7;
           color: #4dabf7;
           transform: scale(1.1);
           box-shadow: 0 0 15px rgba(77, 171, 247, 0.3);
-        }
-        
-        .eject-button {
-          background: #1a1d23;
-          border-color: #4dabf7;
-          color: #4dabf7;
-          box-shadow: 0 0 10px rgba(77, 171, 247, 0.2);
-        }
-        
-        .eject-button:hover {
-          background: #4dabf7;
-          color: #0f1115;
-          box-shadow: 0 0 20px rgba(77, 171, 247, 0.5);
         }
         
         .recording-timer { color: #fa5252 !important; font-weight: 600; }

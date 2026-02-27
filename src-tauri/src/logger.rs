@@ -6,6 +6,17 @@ use std::fs::OpenOptions;
 use std::io::Write;
 
 pub fn get_app_dir() -> PathBuf {
+    // Check if config.json exists in executable directory first
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            let exe_config = exe_dir.join("config.json");
+            if exe_config.exists() {
+                logger::Logger::log(&format!("Config found in executable directory, using: {:?}", exe_dir));
+                return exe_dir.to_path_buf();
+            }
+        }
+    }
+    
     // Determine user-specific data directory based on OS
     let data_dir = if cfg!(target_os = "windows") {
         // Windows: %APPDATA%\VoiceIntel
@@ -46,7 +57,9 @@ pub fn get_app_dir() -> PathBuf {
     
     // Ensure the directory exists
     if !app_dir.exists() {
-        let _ = fs::create_dir_all(&app_dir);
+        if let Err(e) = fs::create_dir_all(&app_dir) {
+            eprintln!("Failed to create app directory: {}", e);
+        }
     }
     
     // Migrate data from old location (executable directory) if it exists and is different
