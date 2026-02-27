@@ -67,7 +67,11 @@ async fn log_frontend(message: String) -> Result<(), String> {
 async fn get_config() -> Result<config::AppConfig, String> {
     match config::AppConfig::load_or_create() {
         Ok(cfg) => Ok(cfg),
-        Err(e) => Err(e.to_string()),
+        Err(e) => {
+            logger::Logger::log_error("get_config", &e.to_string());
+            // Return default config as fallback to ensure settings page loads
+            Ok(config::AppConfig::default())
+        }
     }
 }
 

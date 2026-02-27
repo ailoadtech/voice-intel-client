@@ -1825,7 +1825,7 @@ export default function HomePage() {
         }
         
         .record-toggle {
-          width: 48px; height: 48px; border-radius: 50%; border: 3px solid #333;
+          width: 56px; height: 56px; border-radius: 50%; border: 3px solid #333;
           background: none; cursor: pointer; transition: all 0.3s;
           display: flex; align-items: center; justify-content: center;
           box-sizing: border-box;
@@ -1836,8 +1836,8 @@ export default function HomePage() {
         .record-toggle:not(:disabled):hover { border-color: #ffffff; transform: scale(1.05) !important; box-shadow: 0 0 15px rgba(255, 255, 255, 0.2); }
         .record-toggle.recording { background: #fa5252; border-color: #fa5252; box-shadow: 0 0 25px rgba(250, 82, 82, 0.5); animation: none; transform: scale(1); }
         .record-toggle:disabled { opacity: 0.3; cursor: not-allowed; animation: none; transform: scale(1); }
-        .record-indicator { width: 19px; height: 19px; background: #fa5252; border-radius: 50%; transition: all 0.3s; }
-        .record-toggle.recording .record-indicator { width: 14px; height: 14px; background: white; border-radius: 3px; }
+        .record-indicator { width: 22px; height: 22px; background: #fa5252; border-radius: 50%; transition: all 0.3s; }
+        .record-toggle.recording .record-indicator { width: 17px; height: 17px; background: white; border-radius: 3px; }
         
         @keyframes pulsateButton { 
           0%, 100% { transform: scale(1); opacity: 1; } 
