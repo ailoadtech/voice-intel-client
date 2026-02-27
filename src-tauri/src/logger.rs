@@ -11,7 +11,7 @@ pub fn get_app_dir() -> PathBuf {
         if let Some(exe_dir) = exe_path.parent() {
             let exe_config = exe_dir.join("config.json");
             if exe_config.exists() {
-                Logger::log(&format!("Config found in executable directory, using: {:?}", exe_dir));
+                eprintln!("Config found in executable directory, using: {:?}", exe_dir);
                 return exe_dir.to_path_buf();
             }
         }
