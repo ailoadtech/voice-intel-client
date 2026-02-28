@@ -83,18 +83,54 @@ impl AppConfig {
 
     // Interne Logik zum Laden oder Erstellen der Konfigurationsdatei.
     fn inner_load_or_create() -> Result<Self, Box<dyn std::error::Error>> {
-        let config_path = get_app_dir().join("config.json");
+        let app_dir = get_app_dir();
+        logger::Logger::log(&format!("Loading config from app directory: {:?}", app_dir));
+        
+        // Ensure the directory exists
+        if !app_dir.exists() {
+            logger::Logger::log(&format!("App directory does not exist, creating: {:?}", app_dir));
+            fs::create_dir_all(&app_dir)
+                .map_err(|e| {
+                    logger::Logger::log_error("create_dir_all", &e.to_string());
+                    e
+                })?;
+            logger::Logger::log("Successfully created app directory");
+        }
+        
+        let config_path = app_dir.join("config.json");
+        logger::Logger::log(&format!("Config path: {:?}", config_path));
         
         if !config_path.exists() {
+            logger::Logger::log("Config file does not exist, creating default");
             let default = Self::default();
-            fs::write(&config_path, serde_json::to_string_pretty(&default)?)?;
+            let default_json = serde_json::to_string_pretty(&default)?;
+            logger::Logger::log(&format!("Default config JSON: {}", default_json));
+            fs::write(&config_path, default_json)
+                .map_err(|e| {
+                    logger::Logger::log_error("write config", &e.to_string());
+                    e
+                })?;
+            logger::Logger::log(&format!("Successfully wrote default config to: {:?}", config_path));
+        } else {
+            logger::Logger::log("Config file exists, reading...");
         }
-        let content = fs::read_to_string(&config_path)?;
+        
+        let content = fs::read_to_string(&config_path)
+            .map_err(|e| {
+                logger::Logger::log_error("read config", &e.to_string());
+                e
+            })?;
+        logger::Logger::log(&format!("Config file content length: {} bytes", content.len()));
         
         // Try to parse, if it fails due to missing settings, use defaults
         match serde_json::from_str::<AppConfig>(&content) {
-            Ok(config) => Ok(config),
-            Err(_) => {
+            Ok(config) => {
+                logger::Logger::log("Successfully parsed config");
+                Ok(config)
+            },
+            Err(e) => {
+                logger::Logger::log_error("config parse", &e.to_string());
+                logger::Logger::log("Parsing failed, returning default config");
                 // If parsing fails, return default config
                 Ok(Self::default())
             }

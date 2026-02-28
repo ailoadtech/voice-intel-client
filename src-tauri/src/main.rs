@@ -65,11 +65,24 @@ async fn log_frontend(message: String) -> Result<(), String> {
 
 #[tauri::command]
 async fn get_config() -> Result<config::AppConfig, String> {
-    match config::AppConfig::load_or_create() {
-        Ok(cfg) => Ok(cfg),
+    logger::Logger::log("get_config command called");
+    // Run blocking I/O in a blocking thread
+    let result = async_runtime::spawn_blocking(|| {
+        config::AppConfig::load_or_create()
+    }).await;
+    
+    match result {
+        Ok(Ok(cfg)) => {
+            logger::Logger::log("get_config succeeded, returning config");
+            Ok(cfg)
+        },
+        Ok(Err(e)) => {
+            logger::Logger::log_error("get_config", &e);
+            logger::Logger::log("get_config returning default config as fallback");
+            Ok(config::AppConfig::default())
+        },
         Err(e) => {
-            logger::Logger::log_error("get_config", &e.to_string());
-            // Return default config as fallback to ensure settings page loads
+            logger::Logger::log_error("get_config spawn", &e.to_string());
             Ok(config::AppConfig::default())
         }
     }
@@ -80,14 +93,32 @@ async fn save_config(config_data: config::AppConfig) -> Result<(), String> {
     use std::fs;
     use crate::logger::get_app_dir;
     
-    let config_path = get_app_dir().join("config.json");
-    let content = serde_json::to_string_pretty(&config_data)
-        .map_err(|e| format!("Failed to serialize config: {}", e))?;
+    logger::Logger::log("save_config command called");
     
-    fs::write(&config_path, content)
-        .map_err(|e| format!("Failed to write config file: {}", e))?;
+    // Run blocking I/O in a blocking thread
+    let result = async_runtime::spawn_blocking(move || {
+        let config_path = get_app_dir().join("config.json");
+        let content = serde_json::to_string_pretty(&config_data)
+            .map_err(|e| format!("Failed to serialize config: {}", e))?;
+        fs::write(&config_path, content)
+            .map_err(|e| format!("Failed to write config file: {}", e))?;
+        Ok(())
+    }).await;
     
-    Ok(())
+    match result {
+        Ok(Ok(())) => {
+            logger::Logger::log("save_config succeeded");
+            Ok(())
+        },
+        Ok(Err(e)) => {
+            logger::Logger::log_error("save_config", &e);
+            Err(e)
+        },
+        Err(e) => {
+            logger::Logger::log_error("save_config spawn", &e.to_string());
+            Err(format!("Failed to spawn blocking task: {}", e))
+        }
+    }
 }
 
 #[tauri::command]
@@ -307,6 +338,7 @@ fn main() {
     let ctrl_shift_space_clone = ctrl_shift_space.clone();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_app::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new()
             .with_handler(move |app, shortcut, event| {
