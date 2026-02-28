@@ -320,6 +320,17 @@ fn main() {
         .setup(move |app| {
             logger::Logger::log("Running setup function");
             
+            // Get the main window and handle close request
+            let window = app.get_webview_window("main").expect("main window not found");
+            let app_handle = app.handle().clone();
+            
+            window.on_window_close_requested(move |event| {
+                logger::Logger::log("Window close requested - exiting application");
+                event.prevent_default();
+                // Exit the application gracefully
+                let _ = app_handle.exit(0);
+            });
+            
             // Create necessary directories at startup
             let app_dir = get_app_dir();
             logger::Logger::log(&format!("App directory: {:?}", app_dir));
