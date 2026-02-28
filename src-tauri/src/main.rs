@@ -9,7 +9,7 @@ mod config;
 mod logger;
 
 use serde::Serialize;
-use tauri::{Manager, async_runtime, Emitter};
+use tauri::{Manager, async_runtime, Emitter, AppHandle};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, Modifiers, Code, ShortcutState};
 use std::time::Duration;
 use std::path::Path;
@@ -61,6 +61,12 @@ async fn save_and_queue_recording(samples: Vec<i16>) -> Result<String, String> {
 async fn log_frontend(message: String) -> Result<(), String> {
     logger::Logger::log(&format!("[FRONTEND] {}", message));
     Ok(())
+}
+
+#[tauri::command]
+fn exit_app(app_handle: AppHandle) {
+    logger::Logger::log("exit_app command called, exiting application");
+    let _ = app_handle.exit(0);
 }
 
 #[tauri::command]
@@ -338,7 +344,6 @@ fn main() {
     let ctrl_shift_space_clone = ctrl_shift_space.clone();
 
     tauri::Builder::default()
-        .plugin(tauri_plugin_app::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new()
             .with_handler(move |app, shortcut, event| {
@@ -537,7 +542,7 @@ fn main() {
 
             Ok(())
         })
-.invoke_handler(tauri::generate_handler![save_and_queue_recording, get_recording_audio, delete_recording, check_model, get_all_recordings, get_prompt_templates, get_prompt_template_text, re_enrich_with_prompt, log_frontend, get_config, save_config])
+.invoke_handler(tauri::generate_handler![save_and_queue_recording, get_recording_audio, delete_recording, check_model, get_all_recordings, get_prompt_templates, get_prompt_template_text, re_enrich_with_prompt, log_frontend, get_config, save_config, exit_app])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

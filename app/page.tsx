@@ -1265,15 +1265,10 @@ export default function HomePage() {
                className="exit-button"
                title="Anwendung beenden"
                onClick={async () => {
-                 // Direct check for Tauri app API
-                 if (typeof window !== "undefined" && (window as any).__TAURI__ && (window as any).__TAURI__.app) {
-                   try {
-                     await (window as any).__TAURI__.app.exit();
-                   } catch (error) {
-                     console.error("Failed to exit application:", error);
-                   }
-                 } else {
-                   console.log("Not in Tauri mode or app API not available");
+                 try {
+                   await invoke("exit_app");
+                 } catch (error) {
+                   console.error("Failed to exit application:", error);
                  }
                }}
              >
