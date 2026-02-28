@@ -39,7 +39,7 @@ pub fn get_app_dir() -> PathBuf {
         }
     };
     
-    let mut app_dir = match data_dir {
+    let app_dir = match data_dir {
         Some(dir) => dir,
         None => {
             // Fallback to executable directory
