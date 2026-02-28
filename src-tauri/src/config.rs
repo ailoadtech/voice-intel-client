@@ -129,8 +129,8 @@ impl AppConfig {
                 Ok(config)
             },
             Err(e) => {
-                logger::Logger::log_error("config parse", &e.to_string());
-                logger::Logger::log("Parsing failed, returning default config");
+                Logger::log_error("config parse", &e.to_string());
+                Logger::log("Parsing failed, returning default config");
                 // If parsing fails, return default config
                 Ok(Self::default())
             }
