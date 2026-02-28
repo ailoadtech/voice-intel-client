@@ -73,7 +73,7 @@ fn exit_app(app_handle: AppHandle) {
 async fn get_config() -> Result<config::AppConfig, String> {
     logger::Logger::log("get_config command called");
     // Run blocking I/O in a blocking thread
-    let result = async_runtime::spawn_blocking(|| {
+    let result = async_runtime::spawn_blocking(|| -> Result<config::AppConfig, String> {
         config::AppConfig::load_or_create()
     }).await;
     
@@ -102,13 +102,16 @@ async fn save_config(config_data: config::AppConfig) -> Result<(), String> {
     logger::Logger::log("save_config command called");
     
     // Run blocking I/O in a blocking thread
-    let result = async_runtime::spawn_blocking(move || {
+    let result = async_runtime::spawn_blocking(move || -> Result<(), String> {
         let config_path = get_app_dir().join("config.json");
-        let content = serde_json::to_string_pretty(&config_data)
-            .map_err(|e| format!("Failed to serialize config: {}", e))?;
-        fs::write(&config_path, content)
-            .map_err(|e| format!("Failed to write config file: {}", e))?;
-        Ok(())
+        let content = match serde_json::to_string_pretty(&config_data) {
+            Ok(c) => c,
+            Err(e) => return Err(format!("Failed to serialize config: {}", e)),
+        };
+        match fs::write(&config_path, content) {
+            Ok(()) => Ok(()),
+            Err(e) => Err(format!("Failed to write config file: {}", e)),
+        }
     }).await;
     
     match result {
