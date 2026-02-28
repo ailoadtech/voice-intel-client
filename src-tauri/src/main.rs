@@ -7,6 +7,7 @@ mod whisper;
 mod llm;
 mod config;
 mod logger;
+use tauri_plugin_log::Builder;
 
 use serde::Serialize;
 use tauri::{Manager, async_runtime, Emitter, AppHandle};
@@ -348,6 +349,7 @@ fn main() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(Builder::new().build())
         .plugin(tauri_plugin_global_shortcut::Builder::new()
             .with_handler(move |app, shortcut, event| {
                 if shortcut == &ctrl_shift_space_clone && event.state() == ShortcutState::Pressed {
@@ -364,9 +366,15 @@ fn main() {
             let window = app.get_webview_window("main").expect("main window not found");
             let app_handle = app.handle().clone();
             
+            // Create a shutdown flag for background tasks
+            let shutdown = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+            let shutdown_clone = shutdown.clone();
+            
             window.on_window_event(move |event| {
                 if let tauri::WindowEvent::CloseRequested { .. } = event {
-                    logger::Logger::log("Window close requested - exiting application");
+                    logger::Logger::log("Window close requested - shutting down");
+                    // Signal background tasks to shut down
+                    shutdown_clone.store(true, std::sync::atomic::Ordering::SeqCst);
                     // Exit the application gracefully
                     let _ = app_handle.exit(0);
                 }
@@ -476,9 +484,15 @@ fn main() {
             });
 
             logger::Logger::log("Spawning background worker");
-            // Spawn background worker
+            // Spawn background worker with shutdown flag
             async_runtime::spawn(async move {
                 loop {
+                    // Check for shutdown signal
+                    if shutdown.load(std::sync::atomic::Ordering::SeqCst) {
+                        logger::Logger::log("Background worker received shutdown signal, exiting");
+                        break;
+                    }
+                    
                     let app_dir = get_app_dir();
                     let recordings_dir = app_dir.join("recordings");
                     
@@ -498,6 +512,12 @@ fn main() {
                     rec_files.sort_by_key(|(stem, _)| stem.parse::<u64>().unwrap_or(0));
 
                     for (stem, path) in rec_files {
+                        // Check for shutdown before processing each file
+                        if shutdown.load(std::sync::atomic::Ordering::SeqCst) {
+                            logger::Logger::log("Background worker received shutdown signal during processing, exiting");
+                            break;
+                        }
+                        
                         tokio::time::sleep(Duration::from_millis(300)).await;
                         logger::Logger::log(&format!("=== TRANSCRIPTION START: {} ===", stem));
                         match whisper::transcribe_file(&stem) {
@@ -538,6 +558,13 @@ fn main() {
                         let processed_path = path.with_extension("processed");
                         let _ = std::fs::rename(path, processed_path);
                     }
+                    
+                    // Check for shutdown after processing all files
+                    if shutdown.load(std::sync::atomic::Ordering::SeqCst) {
+                        logger::Logger::log("Background worker received shutdown signal after processing, exiting");
+                        break;
+                    }
+                    
                     tokio::time::sleep(Duration::from_secs(2)).await;
                 }
             });

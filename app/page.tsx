@@ -1238,17 +1238,19 @@ export default function HomePage() {
                   <line x1="9" y1="14" x2="15" y2="14"></line>
                 </svg>
               </button>
-              <button 
-                className="settings-button" 
+              <button
+                className="settings-button"
                 title="Einstellungen"
                 onClick={() => {
                   if (!isSettingsVisible) {
                     // Opening settings: save current history state and hide it
+                    debugLog("Settings button clicked - opening settings panel");
                     setPreviousHistoryVisible(isHistoryVisible);
                     setIsSettingsVisible(true);
                     setIsHistoryVisible(false);
                   } else {
                     // Closing settings: restore previous history state
+                    debugLog("Settings panel closed");
                     setIsSettingsVisible(false);
                     if (previousHistoryVisible !== null) {
                       setIsHistoryVisible(previousHistoryVisible);

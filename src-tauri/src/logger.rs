@@ -4,6 +4,7 @@ use std::fs;
 use std::path::Path;
 use std::fs::OpenOptions;
 use std::io::Write;
+use log::{Log, Level, Metadata, Record, LevelFilter};
 
 pub fn get_app_dir() -> PathBuf {
     // Check if config.json exists in executable directory first
@@ -117,30 +118,23 @@ pub struct Logger;
 
 impl Logger {
     pub fn init() {
+        // Write header to log file
         let app_dir = get_app_dir();
         let log_path = app_dir.join("voice-intel.log");
         if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&log_path) {
             let _ = writeln!(file, "\n=== Voice Intel Log Started at {} ===", chrono::Local::now().format("%Y-%m-%d %H:%M:%S"));
         }
+        // Set global logger for the `log` crate
+        let _ = log::set_logger(&Logger);
+        log::set_max_level(LevelFilter::Info);
     }
 
     pub fn log(message: &str) {
-        println!("{}", message);
-        Self::write_to_file(message);
+        log::info!("{}", message);
     }
 
     pub fn log_error(context: &str, error: &str) {
-        let msg = format!("ERROR [{}]: {}", context, error);
-        eprintln!("{}", msg);
-        Self::write_to_file(&msg);
-    }
-    
-    fn write_to_file(message: &str) {
-        let app_dir = get_app_dir();
-        let log_path = app_dir.join("voice-intel.log");
-        if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&log_path) {
-            let _ = writeln!(file, "{}", message);
-        }
+        log::error!("ERROR [{}]: {}", context, error);
     }
 
     pub fn log_model_download_start() {
@@ -158,4 +152,28 @@ impl Logger {
     pub fn log_model_exists(path: &PathBuf) {
         Self::log(&format!("Model already exists at: {:?}", path));
     }
+}
+
+impl Log for Logger {
+    fn enabled(&self, metadata: &Metadata) -> bool {
+        metadata.level() <= log::LevelFilter::Info
+    }
+
+    fn log(&self, record: &Record) {
+        if self.enabled(record.metadata()) {
+            // Write to log file
+            let app_dir = get_app_dir();
+            let log_path = app_dir.join("voice-intel.log");
+            if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&log_path) {
+                let _ = writeln!(file, "{}", record.args());
+            }
+            // Print to console (stdout or stderr)
+            match record.level() {
+                Level::Error => eprintln!("{}", record.args()),
+                _ => println!("{}", record.args()),
+            }
+        }
+    }
+
+    fn flush(&self) {}
 }
