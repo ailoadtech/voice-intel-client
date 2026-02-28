@@ -365,9 +365,8 @@ fn main() {
             let app_handle = app.handle().clone();
             
             window.on_window_event(move |event| {
-                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if let tauri::WindowEvent::CloseRequested { .. } = event {
                     logger::Logger::log("Window close requested - exiting application");
-                    api.prevent_close();
                     // Exit the application gracefully
                     let _ = app_handle.exit(0);
                 }

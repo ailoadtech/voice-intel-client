@@ -150,36 +150,37 @@ export default function HomePage() {
     }
   }, []);
 
-  // Load config on mount (Tauri mode only)
+  // Load config when Tauri mode is confirmed
   useEffect(() => {
     const loadConfig = async () => {
-      if (typeof window !== "undefined" && !!(window as any).__TAURI__) {
-        try {
-          setConfigLoading(true);
-          const cfg = await invoke("get_config") as any;
-          setConfig({
-            provider: cfg.llm.provider === 'openrouter' ? 'openrouter' : 'ollama',
-            url: cfg.llm.url,
-            api_key: cfg.llm.api_key,
-            model: cfg.llm.model,
-            timeout_seconds: cfg.llm.timeout_seconds,
-            prompt_template1: cfg.llm.prompt_template1,
-            prompt_template2: cfg.llm.prompt_template2,
-            prompt_template3: cfg.llm.prompt_template3,
-            prompt_template4: cfg.llm.prompt_template4,
-            whisper_model_url: cfg.llm.whisper_model_url,
-            enabled: cfg.llm.enabled,
-          });
-          setConfigLoading(false);
-        } catch (err) {
-          console.error("Failed to load config:", err);
-          setConfigMessage("Failed to load configuration");
-          setConfigLoading(false);
-        }
+      if (isTauriMode !== true) return;
+      
+      try {
+        setConfigLoading(true);
+        setConfigMessage(null);
+        const cfg = await invoke("get_config") as any;
+        setConfig({
+          provider: cfg.llm.provider === 'openrouter' ? 'openrouter' : 'ollama',
+          url: cfg.llm.url,
+          api_key: cfg.llm.api_key,
+          model: cfg.llm.model,
+          timeout_seconds: cfg.llm.timeout_seconds,
+          prompt_template1: cfg.llm.prompt_template1,
+          prompt_template2: cfg.llm.prompt_template2,
+          prompt_template3: cfg.llm.prompt_template3,
+          prompt_template4: cfg.llm.prompt_template4,
+          whisper_model_url: cfg.llm.whisper_model_url,
+          enabled: cfg.llm.enabled,
+        });
+        setConfigLoading(false);
+      } catch (err) {
+        console.error("Failed to load config:", err);
+        setConfigMessage("Failed to load configuration");
+        setConfigLoading(false);
       }
     };
     loadConfig();
-  }, []);
+  }, [isTauriMode]);
 
   // Load prompt template text when selection changes
   useEffect(() => {
@@ -1685,18 +1686,21 @@ export default function HomePage() {
         }
         
         /* Inline action buttons inside rec-card */
-        .rec-action-btn-inline { 
-          width: 26px; height: 26px; 
-          background: #2d323b; 
-          border-radius: 6px; 
-          border: 1px solid #3d424b; 
-          cursor: pointer; 
-          transition: all 0.2s; 
-          display: flex; 
-          align-items: center; 
-          justify-content: center; 
+        .rec-action-btn-inline {
+          width: 26px;
+          height: 26px;
+          background: #2d323b;
+          border-radius: 6px;
+          border: 1px solid #3d424b;
+          cursor: pointer;
+          transition: all 0.2s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
           flex-shrink: 0;
           box-sizing: border-box;
+          line-height: 0;
+          padding: 0;
         }
         .rec-action-btn-inline.active {
           background: transparent;
@@ -1720,17 +1724,20 @@ export default function HomePage() {
         .rec-action-btn-inline img { width: 100%; height: 100%; object-fit: contain; }
         
         .rec-refresh-btn-inline {
-          width: 26px; height: 26px; 
-          background: #2d323b; 
+          width: 26px;
+          height: 26px;
+          background: #2d323b;
           border-radius: 6px;
-          border: 1px solid #3d424b; 
-          cursor: pointer; 
+          border: 1px solid #3d424b;
+          cursor: pointer;
           transition: all 0.2s;
-          display: flex; 
-          align-items: center; 
+          display: flex;
+          align-items: center;
           justify-content: center;
-          color: rgb(169, 169, 169); 
+          color: rgb(169, 169, 169);
           flex-shrink: 0;
+          line-height: 0;
+          padding: 0;
         }
         .rec-refresh-btn-inline:hover { 
           transform: scale(1.1); 
