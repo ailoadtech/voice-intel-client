@@ -14,7 +14,10 @@
                     "get_prompt_templates",
                     "get_prompt_template_text",
                     "re_enrich_with_prompt",
-                    "log_frontend"
+                    "log_frontend",
+                    "get_config",
+                    "save_config",
+                    "exit_app"
                 ]
             }
         }
