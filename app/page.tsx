@@ -825,6 +825,9 @@ export default function HomePage() {
 
   return (
     <div className="app-container">
+      {/* Draggable window region - top 20px */}
+      <div className="window-drag-region"></div>
+      
       {/* Show loading overlay during initialization */}
       {isInitializing && (
         <div className="loading-overlay">
@@ -1171,7 +1174,26 @@ export default function HomePage() {
                       onClick={async () => {
                         if (!config) return;
                         try {
-                          await invoke("save_config", { configData: config });
+                          // Transform flat config to nested AppConfig structure expected by Rust
+                          const fullConfig = {
+                            llm: {
+                              enabled: config.enabled,
+                              provider: config.provider,
+                              url: config.url,
+                              api_key: config.api_key,
+                              model: config.model,
+                              timeout_seconds: config.timeout_seconds,
+                              prompt_template1: config.prompt_template1,
+                              prompt_template2: config.prompt_template2,
+                              prompt_template3: config.prompt_template3,
+                              prompt_template4: config.prompt_template4,
+                              whisper_model_url: config.whisper_model_url,
+                            },
+                            settings: {
+                              show_console: false,
+                            }
+                          };
+                          await invoke("save_config", { configData: fullConfig });
                           setConfigMessage("Konfiguration gespeichert!");
                           setTimeout(() => setConfigMessage(null), 3000);
                         } catch (err) {
@@ -1353,6 +1375,27 @@ export default function HomePage() {
           background: rgba(15, 17, 21, 0.95);
           border-radius: 12px;
           overflow: auto;
+          position: relative;
+        }
+        .window-drag-region {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 40px;
+          -webkit-app-region: drag;
+          z-index: 1000;
+          pointer-events: auto;
+        }
+        
+        /* Ensure drag region is not covered by other elements */
+        .app-container > .window-drag-region {
+          pointer-events: auto;
+        }
+        
+        /* Make sure no child elements block dragging */
+        .window-drag-region * {
+          pointer-events: none;
         }
         
         /* Show scrollbar for app-container only when necessary */
