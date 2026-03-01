@@ -7,7 +7,6 @@ mod whisper;
 mod llm;
 mod config;
 mod logger;
-use tauri_plugin_log::Builder;
 
 use serde::Serialize;
 use tauri::{Manager, async_runtime, Emitter, AppHandle};
@@ -15,6 +14,7 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, Modifiers, Code,
 use std::time::Duration;
 use std::path::Path;
 use crate::logger::get_app_dir;
+use chrono;
 
 #[derive(Clone, Serialize)]
 struct ProcessPayload {
@@ -340,7 +340,7 @@ fn get_audio_duration(path: &Path) -> Result<i32, Box<dyn std::error::Error>> {
 
 // Einstiegspunkt der Anwendung: Initialisiert Plugins, Shortcuts und den Hintergrund-Worker.
 fn main() {
-    // Initialize logger first
+    // Initialize logger
     logger::Logger::init();
     logger::Logger::log("Initializing Tauri application");
     
@@ -349,7 +349,6 @@ fn main() {
 
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
-        .plugin(Builder::new().build())
         .plugin(tauri_plugin_global_shortcut::Builder::new()
             .with_handler(move |app, shortcut, event| {
                 if shortcut == &ctrl_shift_space_clone && event.state() == ShortcutState::Pressed {

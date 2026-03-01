@@ -5,6 +5,7 @@ use std::path::Path;
 use std::fs::OpenOptions;
 use std::io::Write;
 use log::{Log, Level, Metadata, Record, LevelFilter};
+use chrono;
 
 pub fn get_app_dir() -> PathBuf {
     // Check if config.json exists in executable directory first
