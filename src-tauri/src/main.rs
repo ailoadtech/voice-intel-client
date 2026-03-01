@@ -347,7 +347,7 @@ fn main() {
     let ctrl_shift_space = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::Space);
     let ctrl_shift_space_clone = ctrl_shift_space.clone();
 
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(Builder::new().build())
         .plugin(tauri_plugin_global_shortcut::Builder::new()
@@ -571,7 +571,14 @@ fn main() {
 
             Ok(())
         })
-.invoke_handler(tauri::generate_handler![save_and_queue_recording, get_recording_audio, delete_recording, check_model, get_all_recordings, get_prompt_templates, get_prompt_template_text, re_enrich_with_prompt, log_frontend, get_config, save_config, exit_app])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .invoke_handler(tauri::generate_handler![save_and_queue_recording, get_recording_audio, delete_recording, check_model, get_all_recordings, get_prompt_templates, get_prompt_template_text, re_enrich_with_prompt, log_frontend, get_config, save_config, exit_app]);
+
+    match app.run(tauri::generate_context!()) {
+        Ok(_) => {}
+        Err(e) => {
+            logger::Logger::log_error("tauri_run", &e.to_string());
+            eprintln!("Failed to run Tauri application: {}", e);
+            std::process::exit(1);
+        }
+    }
 }
