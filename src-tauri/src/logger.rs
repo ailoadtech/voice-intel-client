@@ -116,6 +116,9 @@ pub fn get_app_dir() -> PathBuf {
 
 pub struct Logger;
 
+// Static instance to ensure the logger lives for the entire program lifetime
+static LOGGER: Logger = Logger;
+
 impl Logger {
     pub fn init() {
         // Write header to log file
@@ -125,7 +128,7 @@ impl Logger {
             let _ = writeln!(file, "\n=== Voice Intel Log Started at {} ===", chrono::Local::now().format("%Y-%m-%d %H:%M:%S"));
         }
         // Set global logger for the `log` crate
-        let _ = log::set_logger(&Logger);
+        let _ = log::set_logger(&LOGGER);
         log::set_max_level(LevelFilter::Info);
     }
 
