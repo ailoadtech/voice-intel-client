@@ -1843,9 +1843,9 @@ export default function HomePage() {
         .record-indicator { width: 22px; height: 22px; background: #fa5252; border-radius: 50%; transition: all 0.3s; }
         .record-toggle.recording .record-indicator { width: 17px; height: 17px; background: white; border-radius: 3px; }
         
-        @keyframes pulsateButton { 
-          0%, 100% { transform: scale(1); opacity: 1; } 
-          50% { transform: scale(1.08); opacity: 0.85; } 
+        @keyframes pulsateButton {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.05); }
         }
         
         .eject-button, .settings-button, .exit-button {
@@ -1906,9 +1906,9 @@ export default function HomePage() {
 
         .loading-overlay {
           position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-          background: rgba(15, 17, 21, 0.98);
+          background: #0f1115;
           display: flex; align-items: center; justify-content: center;
-          z-index: 1000; backdrop-filter: blur(10px);
+          z-index: 1000;
         }
         .loading-card {
           background: #1a1d23; border: 1px solid #333; padding: 50px;
@@ -1925,14 +1925,8 @@ export default function HomePage() {
           animation: pulse 2s ease-in-out infinite;
         }
         @keyframes pulse {
-          0%, 100% { 
-            transform: scale(1);
-            opacity: 1;
-          }
-          50% { 
-            transform: scale(1.05);
-            opacity: 0.8;
-          }
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.03); }
         }
         .loading-text { font-size: 22px; font-weight: 700; color: #4dabf7; margin-bottom: 12px; }
         .loading-subtext { font-size: 14px; color: #555; margin-bottom: 25px; }
@@ -1951,21 +1945,21 @@ export default function HomePage() {
           to { transform: rotate(360deg); }
         }
         @keyframes pulse-standby {
-          0%, 100% { 
+          0%, 100% {
             border-color: rgba(77, 171, 247, 0.5);
             transform: scale(1);
           }
-          50% { 
-            border-color: rgba(77, 171, 247, 0.8);
-            transform: scale(1.1);
+          50% {
+            border-color: rgba(77, 171, 247, 0.7);
+            transform: scale(1.05);
           }
         }
 
         .error-overlay {
           position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-          background: rgba(15, 17, 21, 0.8);
+          background: #0f1115;
           display: flex; align-items: center; justify-content: center;
-          z-index: 2000; backdrop-filter: blur(5px);
+          z-index: 2000;
           animation: fadeIn 0.3s ease;
         }
         .error-card {
