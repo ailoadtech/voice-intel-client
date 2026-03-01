@@ -1268,6 +1268,7 @@ export default function HomePage() {
                className="exit-button"
                title="Anwendung beenden"
                onClick={async () => {
+                 debugLog("Exit button clicked - user requested application exit");
                  try {
                    await invoke("exit_app");
                  } catch (error) {
