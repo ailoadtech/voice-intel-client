@@ -1905,6 +1905,208 @@ export default function HomePage() {
           background: #444;
         }
 
+        /* Settings Panel Styles */
+        .settings-panel {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(15, 17, 21, 0.95);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 500;
+          animation: fadeIn 0.3s ease;
+          padding: 20px;
+          box-sizing: border-box;
+        }
+
+        .settings-card {
+          background: #1a1d23;
+          border: 1px solid #333;
+          border-radius: 16px;
+          width: 100%;
+          max-width: 100%;
+          height: 100%;
+          max-height: 100%;
+          display: flex;
+          flex-direction: column;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+          animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+          overflow: hidden;
+        }
+
+        .settings-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 20px 24px;
+          border-bottom: 1px solid #333;
+          flex-shrink: 0;
+        }
+
+        .settings-title {
+          font-size: 18px;
+          font-weight: 700;
+          color: #e0e0e0;
+          margin: 0;
+        }
+
+        .settings-close-btn {
+          background: none;
+          border: none;
+          color: #666;
+          cursor: pointer;
+          padding: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 4px;
+          transition: all 0.2s;
+        }
+
+        .settings-close-btn:hover {
+          color: white;
+          background: rgba(255, 255, 255, 0.1);
+        }
+
+        .settings-content {
+          padding: 24px;
+          overflow-y: auto;
+          flex: 1;
+        }
+
+        .settings-section {
+          margin-bottom: 24px;
+        }
+
+        .settings-section:last-child {
+          margin-bottom: 0;
+        }
+
+        .settings-section-title {
+          font-size: 14px;
+          font-weight: 600;
+          color: #4dabf7;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          margin: 0 0 16px 0;
+          padding-bottom: 8px;
+          border-bottom: 1px solid #333;
+        }
+
+        .settings-item {
+          margin-bottom: 16px;
+        }
+
+        .settings-item:last-child {
+          margin-bottom: 0;
+        }
+
+        .settings-label {
+          display: block;
+          font-size: 13px;
+          font-weight: 500;
+          color: #aaa;
+          margin-bottom: 6px;
+        }
+
+        .settings-input,
+        .settings-select,
+        .settings-textarea {
+          width: 100%;
+          background: #0f1115;
+          border: 1px solid #444;
+          border-radius: 8px;
+          padding: 10px 12px;
+          font-size: 14px;
+          color: #e0e0e0;
+          transition: all 0.2s;
+          box-sizing: border-box;
+          font-family: inherit;
+        }
+
+        .settings-input:focus,
+        .settings-select:focus,
+        .settings-textarea:focus {
+          outline: none;
+          border-color: #4dabf7;
+          box-shadow: 0 0 0 3px rgba(77, 171, 247, 0.1);
+        }
+
+        .settings-input:hover,
+        .settings-select:hover,
+        .settings-textarea:hover {
+          border-color: #555;
+        }
+
+        .settings-textarea {
+          min-height: 80px;
+          resize: vertical;
+          line-height: 1.5;
+        }
+
+        .settings-actions {
+          display: flex;
+          gap: 12px;
+          margin-top: 24px;
+          padding-top: 20px;
+          border-top: 1px solid #333;
+        }
+
+        .settings-button-primary,
+        .settings-button-secondary {
+          flex: 1;
+          padding: 12px 20px;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+          border: none;
+        }
+
+        .settings-button-primary {
+          background: #4dabf7;
+          color: white;
+        }
+
+        .settings-button-primary:hover {
+          background: #339af0;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(77, 171, 247, 0.3);
+        }
+
+        .settings-button-secondary {
+          background: #2d323b;
+          color: #e0e0e0;
+          border: 1px solid #444;
+        }
+
+        .settings-button-secondary:hover {
+          background: #3d424b;
+          border-color: #555;
+          transform: translateY(-1px);
+        }
+
+        .settings-loading {
+          text-align: center;
+          padding: 40px 20px;
+          color: #666;
+          font-size: 14px;
+        }
+
+        .settings-error {
+          text-align: center;
+          padding: 20px;
+          color: #fa5252;
+          font-size: 14px;
+          background: rgba(250, 82, 82, 0.1);
+          border-radius: 8px;
+          border: 1px solid rgba(250, 82, 82, 0.2);
+        }
+
         .loading-overlay {
           position: fixed; top: 0; left: 0; right: 0; bottom: 0;
           background: #0f1115;
