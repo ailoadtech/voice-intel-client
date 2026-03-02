@@ -1481,7 +1481,6 @@ export default function HomePage() {
           padding-bottom: 70px;
           width: 100%;
           max-width: 750px;
-          max-height: calc(100vh - 250px);
           box-sizing: border-box;
           transition: all 0.3s ease;
         }
