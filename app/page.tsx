@@ -528,6 +528,8 @@ export default function HomePage() {
             });
             setStatus("Gespeichert");
             debugLog(`Recording saved with ID: ${id}`);
+            // Automatically open the recordings list to show the new recording
+            setIsHistoryVisible(true);
           } catch (e) {
             console.error("✗ SAVE ERROR:", e);
             debugLog(`Save error: ${e}`);
@@ -557,6 +559,8 @@ export default function HomePage() {
             updated.sort((a, b) => parseInt(a.id) - parseInt(b.id));
             return updated;
           });
+          // Automatically open the recordings list to show the new recording
+          setIsHistoryVisible(true);
 
           // Send to worker
           if (workerRef.current) {
@@ -641,6 +645,40 @@ export default function HomePage() {
       }
     };
   }, [isRecording, startRecording, stopRecording, isTauriMode]);
+
+  // List of common business buzzwords to highlight in bold
+  const BUZZWORDS = [
+    // German
+    'Anliegen', 'Value', 'Ressourcen', 'Synergie', 'Optimierung', 'Effizienz',
+    'Skalierung', 'Disruption', 'Innovation', 'Nachhaltigkeit', 'Agilität',
+    'Kanban', 'Sprint', 'Roadmap', 'Backlog', 'Stakeholder', 'KPI',
+    'ROI', 'Conversion', 'Traffic', 'Lead', 'Pipeline', 'Upselling',
+    'Cross-selling', 'Customer Journey', 'Touchpoint', 'Feedback',
+    'Benchmark', 'Best Practice', 'Workshop', 'Brainstorming',
+    'Meeting', 'Call', 'Demo', 'Pitch', 'Deal', 'Offer',
+    // English
+    'leverage', 'empower', 'synergy', 'optimization', 'efficiency',
+    'scalable', 'disrupt', 'innovation', 'sustainable', 'agile',
+    'paradigm', 'methodology', 'framework', 'ecosystem', 'bandwidth',
+    'bandwidth', 'deliverable', 'milestone', 'timeline', 'deadline',
+    'budget', 'forecast', 'quarter', 'revenue', 'growth', 'profit',
+    'margin', 'cost', 'investment', 'ROI', 'KPI', 'metric', 'dashboard',
+    'analytics', 'data-driven', 'insights', 'strategy', 'vision',
+    'mission', 'goals', 'objectives', 'initiative', 'program',
+    'project', 'task', 'action item', 'follow-up', 'sync', 'align'
+  ];
+
+  const highlightBuzzwords = (text: string): string => {
+    if (!text) return '';
+    
+    // Create a regex pattern that matches any buzzword (case-insensitive)
+    const pattern = new RegExp(`\\b(${BUZZWORDS.join('|')})\\b`, 'gi');
+    
+    // Replace buzzwords with HTML bold tags
+    return text.replace(pattern, (match) => {
+      return `<strong>${match}</strong>`;
+    });
+  };
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -984,11 +1022,12 @@ export default function HomePage() {
                     {/* Transcription block */}
                     {expandedTranscription === rec.id && rec.transcription && (
                       <div className="rec-transcription-inline">
-                        <div className="rec-transcription-text">
-                          {rec.transcription}
-                        </div>
+                        <div
+                          className="rec-transcription-text"
+                          dangerouslySetInnerHTML={{ __html: highlightBuzzwords(rec.transcription) }}
+                        />
                         <div className="rec-transcription-footer">
-                          <button 
+                          <button
                             className="rec-copy-btn"
                             onClick={() => navigator.clipboard.writeText(rec.transcription || "")}
                             title="In Zwischenablage kopieren"
@@ -1005,11 +1044,12 @@ export default function HomePage() {
                     {/* Enrichment block */}
                     {expandedEnrichment === rec.id && rec.enrichment && (
                       <div className="rec-transcription-inline">
-                        <div className="rec-transcription-text">
-                          {rec.enrichment}
-                        </div>
+                        <div
+                          className="rec-transcription-text"
+                          dangerouslySetInnerHTML={{ __html: highlightBuzzwords(rec.enrichment) }}
+                        />
                         <div className="rec-transcription-footer">
-                          <button 
+                          <button
                             className="rec-copy-btn"
                             onClick={() => navigator.clipboard.writeText(rec.enrichment || "")}
                             title="In Zwischenablage kopieren"
@@ -1679,6 +1719,10 @@ export default function HomePage() {
           white-space: pre-wrap;
           word-wrap: break-word;
         }
+        .rec-transcription-text strong {
+          color: #4dabf7;
+          font-weight: 700;
+        }
         
         .rec-time {
           font-size: 13px;
@@ -1704,10 +1748,11 @@ export default function HomePage() {
           top: 50%;
           transform: translateY(-50%);
           display: flex;
-          align-items: center;
-          gap: 8px;
+          flex-direction: column;
+          align-items: flex-end;
+          gap: 6px;
           max-width: 220px;
-          justify-content: flex-end;
+          justify-content: center;
         }
         .rec-play-btn, .rec-delete-btn { background: none; border: none; color: #aaa; cursor: pointer; font-size: 18px; line-height: 26px; transition: all 0.2s; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-sizing: border-box; }
         .rec-play-btn:hover { color: #4dabf7; transform: scale(1.1); }
@@ -2023,6 +2068,9 @@ export default function HomePage() {
         }
 
         .settings-section {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
           margin-bottom: 24px;
         }
 
@@ -2042,10 +2090,6 @@ export default function HomePage() {
         }
 
         .settings-item {
-          margin-bottom: 16px;
-        }
-
-        .settings-item:last-child {
           margin-bottom: 0;
         }
 
