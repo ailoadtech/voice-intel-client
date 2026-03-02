@@ -268,7 +268,7 @@ export default function HomePage() {
   // Listen for enriched result from Rust (Tauri only)
   useEffect(() => {
     if (isTauriMode !== true) return;
-    const unlistenTrans = (window as any).TAURI.event.listen(
+    const unlistenTrans = (window as any).__TAURI__.event.listen(
       "transcription_ready",
       (event: any) => {
         const { id, text } = event.payload;
