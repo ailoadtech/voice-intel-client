@@ -1005,9 +1005,8 @@ export default function HomePage() {
                       ) : (
                         <>
                           <div className="settings-section">
-                            <h4 className="settings-section-title">Whisper Modell</h4>
                             <div className="settings-item">
-                              <label className="settings-label">Modell URL</label>
+                              <label className="settings-label">Whisper Modell URL</label>
                               <input type="text" className="settings-input" value={config?.whisper_model_url || ''} onChange={(e) => setConfig(prev => prev ? { ...prev, whisper_model_url: e.target.value } : null)} />
                             </div>
                           </div>
@@ -1562,7 +1561,7 @@ export default function HomePage() {
           font-size: 13px;
           color: #aaa;
           font-weight: 500;
-          width: 150px;
+          width: 120px;
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
@@ -1573,20 +1572,15 @@ export default function HomePage() {
           align-items: center;
           gap: 8px;
           height: 100%;
-          position: relative;
-          padding-right: 220px;
+          padding-right: 12px;
         }
         .rec-footer-actions {
-          position: absolute;
-          right: 0;
-          top: 50%;
-          transform: translateY(-50%);
           display: flex;
-          flex-direction: column;
-          align-items: flex-end;
+          flex-direction: row;
+          align-items: center;
           gap: 6px;
-          max-width: 220px;
-          justify-content: center;
+          flex-shrink: 0;
+          margin-left: auto;
         }
         .rec-play-btn,
         .rec-delete-btn {
@@ -1723,7 +1717,7 @@ export default function HomePage() {
           cursor: pointer;
           transition: all 0.2s;
           flex-shrink: 0;
-          width: 100px;
+          width: 120px;
           height: 26px;
           display: flex;
           align-items: center;
