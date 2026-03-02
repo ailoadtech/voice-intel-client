@@ -65,7 +65,7 @@ impl Default for AppConfig {
                 prompt_template1: "Verbessere folgenden Text sprachlich, füge Struktur hinzu und gib ihn als professionellen, formatierten Text zurück:\n\n{{text}}".to_string(),
                 prompt_template2: "Fasse den Text zusammen als Bullet-Liste:\n\n{{text}}".to_string(),
                 prompt_template3: "Schreibe den Text im Stil von Shakespeare:\n\n{{text}}".to_string(),
-                prompt_template4: "Bullshit Bingo. Wenn ein Begriff aus der Kategorie Berufsleben/Management im transkriberten Text auftaucht, dann mache ihn in der enriched Version Fett:\n\n{{text}}".to_string(),
+                prompt_template4: "Bullshit Bingo. Wenn ein Begriff aus der Kategorie Berufsleben/Management im transkribierten Text auftaucht, dann mache ihn in der enriched Version Fett, indem du ihn mit HTML <strong>-Tags markierst:\n\n{{text}}".to_string(),
                 whisper_model_url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin".to_string(),
             },
             settings: AppSettings {

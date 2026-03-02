@@ -131,6 +131,7 @@ export default function HomePage() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const workerRef = useRef<Worker | null>(null);
   const audioBlobs = useRef<Map<string, Blob>>(new Map());
+  const historyStackRef = useRef<HTMLDivElement>(null);
 
   // Debug: Log component mount
   useEffect(() => {
@@ -220,6 +221,7 @@ export default function HomePage() {
               status: "completed"
             } : r
           ));
+          setIsHistoryVisible(true);
         } else if (type === 'status') {
           console.log(`Worker status for ${id}: ${status}`);
           if (status === 'loading') {
@@ -309,6 +311,7 @@ export default function HomePage() {
           r.id === id ? { ...r, enrichment: text, status: "completed" } : r
         ));
         setStatus("Bereit");
+        setIsHistoryVisible(true);
       }
     );
 
@@ -424,6 +427,18 @@ export default function HomePage() {
 
     initialize();
   }, []);
+
+  // Auto-scroll to newest recording when history becomes visible
+  useEffect(() => {
+    if (isHistoryVisible && historyStackRef.current) {
+      // Use setTimeout to ensure DOM has updated with new content
+      setTimeout(() => {
+        if (historyStackRef.current) {
+          historyStackRef.current.scrollTop = historyStackRef.current.scrollHeight;
+        }
+      }, 50);
+    }
+  }, [isHistoryVisible, recordings.length]);
 
   const startRecording = useCallback(async () => {
     // Log to backend immediately
@@ -648,7 +663,7 @@ export default function HomePage() {
 
   // List of common business buzzwords to highlight in bold
   const BUZZWORDS = [
-    // German
+    // German - Berufsleben/Management (Business/Management Buzzwords)
     'Anliegen', 'Value', 'Ressourcen', 'Synergie', 'Optimierung', 'Effizienz',
     'Skalierung', 'Disruption', 'Innovation', 'Nachhaltigkeit', 'Agilität',
     'Kanban', 'Sprint', 'Roadmap', 'Backlog', 'Stakeholder', 'KPI',
@@ -656,16 +671,66 @@ export default function HomePage() {
     'Cross-selling', 'Customer Journey', 'Touchpoint', 'Feedback',
     'Benchmark', 'Best Practice', 'Workshop', 'Brainstorming',
     'Meeting', 'Call', 'Demo', 'Pitch', 'Deal', 'Offer',
+    'Change Management', 'Digital Transformation', 'Value Proposition',
+    'Business Intelligence', 'Data Mining', 'Cloud Computing',
+    'Agile Methodology', 'Scrum', 'Sprint Planning', 'Daily Standup',
+    'Retrospektive', 'Sprint Review', 'Product Owner', 'Scrum Master',
+    'User Story', 'Epic', 'Feature', 'Release', 'Deployment',
+    'Continuous Integration', 'Continuous Delivery', 'DevOps',
+    'Quality Assurance', 'Testing', 'Bug', 'Issue', 'Ticket',
+    'Time to Market', 'Go Live', 'Rollout', 'Phasing',
+    'Kernkompetenz', 'Wettbewerbsvorteil', 'Marktanteil',
+    'Umsatzsteigerung', 'Gewinnmaximierung', 'Kosteneffizienz',
+    'Investition', 'Rendite', 'Profitabilität', 'Kosten-Nutzen-Analyse',
+    'Risikomanagement', 'Compliance', 'Governance', 'Audit',
+    'Due Diligence', 'M&A', 'Joint Venture', 'Partnerschaft',
+    'Lieferant', 'Supply Chain', 'Logistik', 'Outsourcing',
+    'Offshoring', 'Nearshoring', 'Remote Work', 'Homeoffice',
+    'New Work', 'Work-Life-Balance', 'Diversity', 'Inclusion',
+    'Talent Management', 'Recruiting', 'Onboarding', 'Offboarding',
+    'Mitarbeiterführung', 'Team Building', 'Motivation',
+    'Leistungsbeurteilung', 'Feedback-Kultur', 'Konfliktmanagement',
+    'Projektmanagement', 'Portfolio', 'Program Management',
+    'Meilenstein', 'Zeitplan', 'Deadline', 'Puffer',
+    'Ressourcenplanung', 'Kapazität', 'Auslastung',
+    'Budgetierung', 'Planung', 'Forecast', 'Prognose',
+    'Berichterstattung', 'Reporting', 'Dashboard', 'KPI-Tracking',
+    'Geschäftsbericht', 'Jahresabschluss', 'Bilanz', 'GuV',
     // English
     'leverage', 'empower', 'synergy', 'optimization', 'efficiency',
     'scalable', 'disrupt', 'innovation', 'sustainable', 'agile',
     'paradigm', 'methodology', 'framework', 'ecosystem', 'bandwidth',
-    'bandwidth', 'deliverable', 'milestone', 'timeline', 'deadline',
+    'deliverable', 'milestone', 'timeline', 'deadline',
     'budget', 'forecast', 'quarter', 'revenue', 'growth', 'profit',
     'margin', 'cost', 'investment', 'ROI', 'KPI', 'metric', 'dashboard',
     'analytics', 'data-driven', 'insights', 'strategy', 'vision',
     'mission', 'goals', 'objectives', 'initiative', 'program',
-    'project', 'task', 'action item', 'follow-up', 'sync', 'align'
+    'project', 'task', 'action item', 'follow-up', 'sync', 'align',
+    'change management', 'digital transformation', 'value proposition',
+    'business intelligence', 'data mining', 'cloud computing',
+    'agile methodology', 'scrum', 'sprint planning', 'daily standup',
+    'retrospective', 'sprint review', 'product owner', 'scrum master',
+    'user story', 'epic', 'feature', 'release', 'deployment',
+    'continuous integration', 'continuous delivery', 'devops',
+    'quality assurance', 'testing', 'bug', 'issue', 'ticket',
+    'time to market', 'go live', 'rollout', 'phasing',
+    'core competency', 'competitive advantage', 'market share',
+    'revenue growth', 'profit maximization', 'cost efficiency',
+    'investment', 'return', 'profitability', 'cost-benefit analysis',
+    'risk management', 'compliance', 'governance', 'audit',
+    'due diligence', 'M&A', 'merger', 'acquisition', 'joint venture',
+    'partnership', 'supplier', 'supply chain', 'logistics', 'outsourcing',
+    'offshoring', 'nearshoring', 'remote work', 'home office',
+    'new work', 'work-life balance', 'diversity', 'inclusion',
+    'talent management', 'recruiting', 'onboarding', 'offboarding',
+    'leadership', 'team building', 'motivation',
+    'performance review', 'feedback culture', 'conflict management',
+    'project management', 'portfolio', 'program management',
+    'milestone', 'timeline', 'deadline', 'buffer',
+    'resource planning', 'capacity', 'utilization',
+    'budgeting', 'planning', 'forecast', 'projection',
+    'reporting', 'dashboard', 'KPI tracking',
+    'annual report', 'balance sheet', 'income statement', 'P&L'
   ];
 
   const highlightBuzzwords = (text: string): string => {
@@ -904,7 +969,7 @@ export default function HomePage() {
         {/* History Stack and Record Button - Bottom Layout */}
         <div className="controls-and-history">
           {/* History Stack - saved recordings only */}
-          <div className={`history-stack custom-scrollbar ${!isHistoryVisible ? 'hidden' : ''}`} style={!isHistoryVisible ? { display: 'none' } : undefined}>
+          <div ref={historyStackRef} className={`history-stack custom-scrollbar ${!isHistoryVisible ? 'hidden' : ''}`} style={!isHistoryVisible ? { display: 'none' } : undefined}>
             {/* Show all saved recordings */}
             {recordings.map((rec) => (
             <div key={rec.id} className="rec-item">
@@ -1110,7 +1175,7 @@ export default function HomePage() {
                     <h4 className="settings-section-title">LLM Provider</h4>
                     <div className="settings-item">
                       <label className="settings-label">Provider</label>
-                      <select 
+                      <select
                         className="settings-select"
                         value={config?.provider || 'ollama'}
                         onChange={(e) => {
@@ -1126,7 +1191,7 @@ export default function HomePage() {
                     {config?.provider === 'openrouter' && (
                       <div className="settings-item">
                         <label className="settings-label">API Key</label>
-                        <input 
+                        <input
                           type="password"
                           className="settings-input"
                           value={config?.api_key || ''}
@@ -1137,7 +1202,7 @@ export default function HomePage() {
                     )}
                     <div className="settings-item">
                       <label className="settings-label">Server URL</label>
-                      <input 
+                      <input
                         type="text"
                         className="settings-input"
                         value={config?.url || ''}
@@ -1147,7 +1212,7 @@ export default function HomePage() {
                     </div>
                     <div className="settings-item">
                       <label className="settings-label">Modell</label>
-                      <input 
+                      <input
                         type="text"
                         className="settings-input"
                         value={config?.model || ''}
@@ -1157,7 +1222,7 @@ export default function HomePage() {
                     </div>
                     <div className="settings-item">
                       <label className="settings-label">Timeout (Sekunden)</label>
-                      <input 
+                      <input
                         type="number"
                         className="settings-input"
                         value={config?.timeout_seconds || 60}
@@ -1168,7 +1233,8 @@ export default function HomePage() {
                     </div>
                   </div>
                    
-                  <div className="settings-actions">
+                  <div className="settings-section">
+                    <h4 className="settings-section-title">Prompt Templates</h4>
                     <div className="settings-item">
                       <label className="settings-label">Prompt 1</label>
                       <textarea
@@ -1208,10 +1274,10 @@ export default function HomePage() {
                   </div>
                   
                  <div className="settings-section">
-                   <h4 className="settings-section-title">Prompt Templates</h4>
-                    <button 
-                      className="settings-button-primary"
-                      onClick={async () => {
+                   <div className="settings-actions">
+                     <button
+                       className="settings-button-primary"
+                       onClick={async () => {
                         if (!config) return;
                         try {
                           // Transform flat config to nested AppConfig structure expected by Rust
