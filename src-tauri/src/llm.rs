@@ -2,6 +2,7 @@
 use std::fs;
 use serde::{Deserialize, Serialize};
 use crate::logger::get_app_dir;
+use log::{info, error};
 
 #[derive(Serialize)]
 struct OllamaRequest {
@@ -58,8 +59,12 @@ async fn inner_enrich_and_save(
     
     if !config.enabled {
         fs::write(&out_path, transcript)?;
+        info!("LLM enrichment disabled, saved transcript directly for timestamp {}", timestamp);
         return Ok(transcript.to_string());
     }
+    
+    info!("Starting LLM enrichment: timestamp={}, provider={}, model={}, transcript_len={}, prompt_name={:?}",
+        timestamp, config.provider, config.model, transcript.len(), prompt_name);
     
     // Get the appropriate template based on prompt_name
     let template = if let Some(name) = prompt_name {
@@ -97,20 +102,21 @@ async fn inner_enrich_and_save(
                         if let Some(choice) = res.choices.first() {
                             let enriched = choice.message.content.trim().to_string();
                             fs::write(&out_path, &enriched)?;
+                            info!("OpenRouter enrichment successful: timestamp={}, output_len={}", timestamp, enriched.len());
                             return Ok(enriched);
                         } else {
-                            eprintln!("OpenRouter returned no choices. enrichment failed.");
+                            error!("OpenRouter returned no choices for timestamp {}", timestamp);
                             return Err("OpenRouter returned no choices".into());
                         }
                     }
                     Err(e) => {
-                        eprintln!("Failed to parse OpenRouter response: {}", e);
+                        error!("Failed to parse OpenRouter response for timestamp {}: {}", timestamp, e);
                         return Err(e.into());
                     }
                 }
             }
             Err(e) => {
-                eprintln!("Failed to connect to OpenRouter: {}", e);
+                error!("Failed to connect to OpenRouter for timestamp {}: {}", timestamp, e);
                 return Err(e.into());
             }
         }
@@ -132,16 +138,17 @@ async fn inner_enrich_and_save(
                 Ok(res) => {
                     let enriched = res.response.trim().to_string();
                     fs::write(&out_path, &enriched)?;
+                    info!("Ollama enrichment successful: timestamp={}, output_len={}", timestamp, enriched.len());
                     Ok(enriched)
                 }
                 Err(e) => {
-                    eprintln!("Failed to parse LLM response: {}", e);
+                    error!("Failed to parse Ollama response for timestamp {}: {}", timestamp, e);
                     return Err(e.into());
                 }
             }
         }
         Err(e) => {
-            eprintln!("Failed to connect to LLM at {}: {}", config.url, e);
+            error!("Failed to connect to Ollama at {} for timestamp {}: {}", config.url, timestamp, e);
             return Err(e.into());
         }
     }

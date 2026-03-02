@@ -1054,6 +1054,19 @@ export default function HomePage() {
                   ) : (
                     <>
                   <div className="settings-section">
+                    <h4 className="settings-section-title">Whisper Modell</h4>
+                    <div className="settings-item">
+                      <label className="settings-label">Modell URL</label>
+                      <input
+                        type="text"
+                        className="settings-input"
+                        value={config?.whisper_model_url || ''}
+                        onChange={(e) => setConfig(prev => prev ? { ...prev, whisper_model_url: e.target.value } : null)}
+                      />
+                    </div>
+                  </div>
+                   
+                  <div className="settings-section">
                     <h4 className="settings-section-title">LLM Provider</h4>
                     <div className="settings-item">
                       <label className="settings-label">Provider</label>
@@ -1114,61 +1127,48 @@ export default function HomePage() {
                       />
                     </div>
                   </div>
-                  
-                  <div className="settings-section">
-                    <h4 className="settings-section-title">Prompt Templates</h4>
+                   
+                  <div className="settings-actions">
                     <div className="settings-item">
                       <label className="settings-label">Prompt 1</label>
-                      <textarea 
+                      <textarea
                         className="settings-textarea"
                         value={config?.prompt_template1 || ''}
                         onChange={(e) => setConfig(prev => prev ? { ...prev, prompt_template1: e.target.value } : null)}
-                        rows={3}
+                        rows={5}
                       />
                     </div>
                     <div className="settings-item">
                       <label className="settings-label">Prompt 2</label>
-                      <textarea 
+                      <textarea
                         className="settings-textarea"
                         value={config?.prompt_template2 || ''}
                         onChange={(e) => setConfig(prev => prev ? { ...prev, prompt_template2: e.target.value } : null)}
-                        rows={3}
+                        rows={5}
                       />
                     </div>
                     <div className="settings-item">
                       <label className="settings-label">Prompt 3</label>
-                      <textarea 
+                      <textarea
                         className="settings-textarea"
                         value={config?.prompt_template3 || ''}
                         onChange={(e) => setConfig(prev => prev ? { ...prev, prompt_template3: e.target.value } : null)}
-                        rows={3}
+                        rows={5}
                       />
                     </div>
                     <div className="settings-item">
                       <label className="settings-label">Prompt 4</label>
-                      <textarea 
+                      <textarea
                         className="settings-textarea"
                         value={config?.prompt_template4 || ''}
                         onChange={(e) => setConfig(prev => prev ? { ...prev, prompt_template4: e.target.value } : null)}
-                        rows={3}
+                        rows={5}
                       />
                     </div>
                   </div>
                   
-                  <div className="settings-section">
-                    <h4 className="settings-section-title">Whisper Modell</h4>
-                    <div className="settings-item">
-                      <label className="settings-label">Modell URL</label>
-                      <input 
-                        type="text"
-                        className="settings-input"
-                        value={config?.whisper_model_url || ''}
-                        onChange={(e) => setConfig(prev => prev ? { ...prev, whisper_model_url: e.target.value } : null)}
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="settings-actions">
+                 <div className="settings-section">
+                   <h4 className="settings-section-title">Prompt Templates</h4>
                     <button 
                       className="settings-button-primary"
                       onClick={async () => {
@@ -1196,6 +1196,8 @@ export default function HomePage() {
                           await invoke("save_config", { configData: fullConfig });
                           setConfigMessage("Konfiguration gespeichert!");
                           setTimeout(() => setConfigMessage(null), 3000);
+                          // Close settings window after successful save
+                          setIsSettingsVisible(false);
                         } catch (err) {
                           setConfigMessage("Fehler beim Speichern: " + (err as any).toString());
                         }
@@ -1810,7 +1812,7 @@ export default function HomePage() {
           cursor: pointer;
           transition: all 0.2s;
           flex-shrink: 0;
-          width: 80px;
+          width: 100px;
           height: 26px;
           display: flex;
           align-items: center;
