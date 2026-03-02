@@ -682,10 +682,12 @@ export default function HomePage() {
 
   const highlightBuzzwords = (text: string, selectedPrompt: string, isEnrichment: boolean): string => {
     if (!text) return '';
-    let buzzwordsToUse = [...BUZZWORDS];
-    if (selectedPrompt === "Prompt 4" && isEnrichment) {
-      buzzwordsToUse = buzzwordsToUse.filter(word => word.toLowerCase() !== 'meeting');
+    // Only apply highlighting for Prompt 4 AND only in enrichment (Transkription AI) text box
+    if (selectedPrompt !== "Prompt 4" || !isEnrichment) {
+      return text;
     }
+    // Remove 'meeting' from buzzwords always
+    const buzzwordsToUse = BUZZWORDS.filter(word => word.toLowerCase() !== 'meeting');
     const pattern = new RegExp(`\\b(${buzzwordsToUse.join('|')})\\b`, 'gi');
     return text.replace(pattern, (match) => {
       return `<strong>${match}</strong>`;
@@ -1479,6 +1481,7 @@ export default function HomePage() {
           padding-bottom: 70px;
           width: 100%;
           max-width: 750px;
+          max-height: calc(100vh - 250px);
           box-sizing: border-box;
           transition: all 0.3s ease;
         }
