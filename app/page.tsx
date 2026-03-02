@@ -225,44 +225,86 @@ export default function HomePage() {
     };
   }, [isTauriMode]);
 
-  // Listen for model ready/failed events from backend
+  // Listen for model ready/failed events from backend and ensure model is loaded
   useEffect(() => {
     if (isTauriMode !== true) return;
+
+    let unlistenReady: (() => void) | null = null;
+    let unlistenFailed: (() => void) | null = null;
+    let unlistenChecking: (() => void) | null = null;
+    let isMounted = true;
+
     const setupModelListeners = async () => {
-      const unlistenReady = await (window as any).__TAURI__.event.listen(
-        "model_ready",
-        () => {
-          debugLog("Model ready event received - model download complete");
-          setIsModelAvailable(true);
-          setIsModelLoading(false);
-          setIsInitializing(false);
+      try {
+        unlistenReady = await (window as any).__TAURI__.event.listen(
+          "model_ready",
+          () => {
+            debugLog("Model ready event received - model download complete");
+            if (isMounted) {
+              setIsModelAvailable(true);
+              setIsModelLoading(false);
+              setIsInitializing(false);
+            }
+          }
+        );
+        unlistenFailed = await (window as any).__TAURI__.event.listen(
+          "model_failed",
+          (event: any) => {
+            debugLog(`Model failed event received: ${event.payload}`);
+            if (isMounted) {
+              setIsModelAvailable(false);
+              setIsModelLoading(false);
+              setIsInitializing(false);
+              setErrorMessage("Fehler beim Laden des Whisper-Modells: " + event.payload);
+            }
+          }
+        );
+        unlistenChecking = await (window as any).__TAURI__.event.listen(
+          "model_checking",
+          () => {
+            debugLog("Model checking event received - keeping splash screen visible");
+            if (isMounted) {
+              setIsModelLoading(true);
+              setIsInitializing(true);
+            }
+          }
+        );
+
+        // After listeners are set up, check model status to handle missed events
+        if (!isMounted) return;
+        try {
+          const isReady = await invoke("check_model");
+          debugLog(`check_model result: ${isReady}`);
+          if (isMounted) {
+            if (isReady) {
+              setIsModelAvailable(true);
+              setIsModelLoading(false);
+              setIsInitializing(false);
+            }
+            // If check_model throws, we'll catch below
+          }
+        } catch (err) {
+          if (isMounted) {
+            debugLog(`check_model error: ${err}`);
+            setIsModelAvailable(false);
+            setIsModelLoading(false);
+            setIsInitializing(false);
+            setErrorMessage("Fehler beim Laden des Whisper-Modells: " + (err as any).toString());
+          }
         }
-      );
-      const unlistenFailed = await (window as any).__TAURI__.event.listen(
-        "model_failed",
-        (event: any) => {
-          debugLog(`Model failed event received: ${event.payload}`);
-          setIsModelAvailable(false);
-          setIsModelLoading(false);
-          setIsInitializing(false);
-          setErrorMessage("Fehler beim Laden des Whisper-Modells: " + event.payload);
-        }
-      );
-      const unlistenChecking = await (window as any).__TAURI__.event.listen(
-        "model_checking",
-        () => {
-          debugLog("Model checking event received - keeping splash screen visible");
-          setIsModelLoading(true);
-          setIsInitializing(true);
-        }
-      );
-      return () => {
-        unlistenReady();
-        unlistenFailed();
-        unlistenChecking();
-      };
+      } catch (err) {
+        console.error("Error setting up model listeners or checking model:", err);
+      }
     };
+
     setupModelListeners();
+
+    return () => {
+      isMounted = false;
+      if (unlistenReady) unlistenReady();
+      if (unlistenFailed) unlistenFailed();
+      if (unlistenChecking) unlistenChecking();
+    };
   }, [isTauriMode]);
 
   // Listen for enriched result from Rust (Tauri only)
@@ -638,9 +680,13 @@ export default function HomePage() {
     'annual report', 'balance sheet', 'income statement', 'P&L'
   ];
 
-  const highlightBuzzwords = (text: string): string => {
+  const highlightBuzzwords = (text: string, selectedPrompt: string, isEnrichment: boolean): string => {
     if (!text) return '';
-    const pattern = new RegExp(`\\b(${BUZZWORDS.join('|')})\\b`, 'gi');
+    let buzzwordsToUse = [...BUZZWORDS];
+    if (selectedPrompt === "Prompt 4" && isEnrichment) {
+      buzzwordsToUse = buzzwordsToUse.filter(word => word.toLowerCase() !== 'meeting');
+    }
+    const pattern = new RegExp(`\\b(${buzzwordsToUse.join('|')})\\b`, 'gi');
     return text.replace(pattern, (match) => {
       return `<strong>${match}</strong>`;
     });
@@ -954,7 +1000,7 @@ export default function HomePage() {
                       <>
                         {expandedTranscription === rec.id && rec.transcription && (
                           <div className="rec-transcription-inline">
-                            <div className="rec-transcription-text" dangerouslySetInnerHTML={{ __html: highlightBuzzwords(rec.transcription) }} />
+                            <div className="rec-transcription-text" dangerouslySetInnerHTML={{ __html: highlightBuzzwords(rec.transcription, selectedPrompt, false) }} />
                             <div className="rec-transcription-footer">
                               <button className="rec-copy-btn" onClick={() => navigator.clipboard.writeText(rec.transcription || "")} title="In Zwischenablage kopieren">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="12.6" height="12.6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -967,7 +1013,7 @@ export default function HomePage() {
                         )}
                         {expandedEnrichment === rec.id && rec.enrichment && (
                           <div className="rec-transcription-inline">
-                            <div className="rec-transcription-text" dangerouslySetInnerHTML={{ __html: highlightBuzzwords(rec.enrichment) }} />
+                            <div className="rec-transcription-text" dangerouslySetInnerHTML={{ __html: highlightBuzzwords(rec.enrichment, selectedPrompt, true) }} />
                             <div className="rec-transcription-footer">
                               <button className="rec-copy-btn" onClick={() => navigator.clipboard.writeText(rec.enrichment || "")} title="In Zwischenablage kopieren">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

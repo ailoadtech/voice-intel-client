@@ -1,8 +1,15 @@
 // src-tauri/src/whisper.rs
 use std::fs;
+use std::sync::{Mutex, OnceLock};
 use std::path::PathBuf;
 use whisper_rs::{WhisperContext, WhisperContextParameters, FullParams, SamplingStrategy};
 use crate::logger::get_app_dir;
+
+static MODEL_STATE: OnceLock<Mutex<Option<Result<(), String>>>> = OnceLock::new();
+
+fn get_model_state() -> &'static Mutex<Option<Result<(), String>>> {
+    MODEL_STATE.get_or_init(|| Mutex::new(None))
+}
 
 // Get the model path
 pub fn get_model_path() -> PathBuf {
@@ -16,7 +23,7 @@ fn get_model_url() -> String {
 }
 
 // Stellt sicher, dass das Whisper-Modell heruntergeladen und im lokalen Verzeichnis verfügbar ist.
-pub fn ensure_model() -> Result<(), String> {
+fn ensure_model_inner() -> Result<(), String> {
     use crate::logger::Logger;
     
     let model_path = get_model_path();
@@ -132,6 +139,18 @@ pub fn ensure_model() -> Result<(), String> {
     Logger::log("=== MODEL CHECK END (download complete and verified) ===");
     
     Ok(())
+}
+
+pub fn ensure_model() -> Result<(), String> {
+    let state = get_model_state();
+    let mut guard = state.lock().unwrap();
+    if let Some(result) = &*guard {
+        return result.clone();
+    }
+    let result = ensure_model_inner();
+    let result_clone = result.clone();
+    *guard = Some(result_clone);
+    result
 }
 
 // Öffentliche Funktion zur Transkription einer Audiodatei basierend auf einem Zeitstempel.
