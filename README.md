@@ -16,6 +16,11 @@ Voice Intelligence ist eine Tauri-basierte Desktop-Anwendung, die Sprachaufnahme
 - **Global Shortcut**: `Strg+Alt+Leertaste`
 - **Browser-Modus**: Browser Modus mit eingeschränkten Features
 
+## Screenshots
+
+![Recordings UI](./recordings.jpg)
+![Settings UI](./settings.jpg)
+
 ## Technologie-Stack
 
 ### Frontend

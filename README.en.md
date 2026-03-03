@@ -16,6 +16,11 @@ Voice Intelligence is a Tauri-based desktop application that transcribes voice r
 - **Global Shortcut**: `Ctrl+Alt+Space`
 - **Browser Mode**: Browser mode with limited features
 
+## Screenshots
+
+![Recordings UI](./recordings.jpg)
+![Settings UI](./settings.jpg)
+
 ## Technology Stack
 
 ### Frontend
