@@ -69,7 +69,7 @@ jobs:
           echo     "provider": "ollama", >> release\config.json
           echo     "url": "http://localhost:11434", >> release\config.json
           echo     "api_key": "", >> release\config.json
-          echo     "model": "llama3.2:latest", >> release\config.json
+          echo     "model": "llama3.2:1b", >> release\config.json
           echo     "timeout_seconds": 60, >> release\config.json
           echo     "prompt_template1": "Verbessere folgenden Text sprachlich, füge Struktur hinzu und gib ihn als professionellen, formatierten Text zurück:\n\n{{text}}", >> release\config.json
           echo     "prompt_template2": "Fasse den Text zusammen als Bullet-Liste:\n\n{{text}}", >> release\config.json

@@ -6,22 +6,21 @@ Eine Desktop-Anwendung zur Sprachaufnahme mit automatischer Transkription und KI
 
 Voice Intelligence ist eine Tauri-basierte Desktop-Anwendung, die Sprachaufnahmen in Echtzeit transkribiert und optional mit einem LLM (Large Language Model) anreichert. Die App nutzt Whisper für die Sprachtranskription und kann mit Ollama für die KI-gestützte Textverarbeitung integriert werden.
 
-## Hauptfunktionen
+## Kernfunktionen
 
-- **Sprachaufnahme**: Aufnahme von Audio über das Mikrofon mit Live-Timer
-- **Automatische Transkription**: Konvertierung von Sprache zu Text mittels Whisper
-- **KI-Anreicherung**: Optionale Textverbesserung durch lokales LLM (Ollama)
-- **Mehrere Prompt-Templates**: Verschiedene Verarbeitungsstile (Verbesserung, Zusammenfassung, etc.)
+- **Live-Sprachaufnahme**: Aufnahme von Audio über das Mikrofon mit Live-Timer
+- **Automatische lokale Transkription**: Konvertierung von Sprache zu Text mittels Whisper
+- **Optionale KI-Anreicherung**: Optionale Textveredelung durch lokales LLM (Ollama, Openrouter)
+- **Konfigurierbare Prompt-Templates**: Verschiedene Verarbeitungsstile (Verbesserung, Zusammenfassung, Stil, etc.)
 - **Aufnahme-Historie**: Verwaltung aller Aufnahmen mit Wiedergabe-Funktion
-- **Global Shortcut**: Schnellzugriff via `Strg+Shift+Leertaste`
-- **Browser-Modus**: Funktioniert auch im Browser mit eingeschränkten Features
+- **Global Shortcut**: `Strg+Alt+Leertaste`
+- **Browser-Modus**: Browser Modus mit eingeschränkten Features
 
 ## Technologie-Stack
 
 ### Frontend
 - **Next.js 14** - React Framework
 - **TypeScript** - Typsichere Entwicklung
-- **Xenova Transformers** - Browser-basierte ML-Modelle
 
 ### Backend (Tauri)
 - **Rust** - Performante native Anwendung
@@ -29,8 +28,6 @@ Voice Intelligence ist eine Tauri-basierte Desktop-Anwendung, die Sprachaufnahme
 - **Reqwest** - HTTP-Client für LLM-Integration
 - **Hound** - Audio-Verarbeitung
 - **Tauri 2.0** - Desktop-Framework
-
-## Installation
 
 ### Voraussetzungen
 
@@ -70,7 +67,7 @@ Die Konfiguration erfolgt über die Datei `config.json`:
   "llm": {
     "enabled": true,
     "url": "http://127.0.0.1:11434",
-    "model": "llama3.2:latest",
+    "model": "llama3.2:1b",
     "timeout_seconds": 60,
     "Prompt1": "Verbessere folgenden Text...",
     "Prompt2": "Fasse den Text zusammen...",
@@ -121,7 +118,7 @@ Erstellt eine produktionsreife Desktop-Anwendung.
 
 1. **Aufnahme starten**: Klick auf den roten Aufnahme-Button oder `Strg+Shift+Leertaste`
 2. **Aufnahme stoppen**: Erneuter Klick oder Shortcut
-3. **Transkription**: Audio wird automatisch mit Whisper transkribiert
+3. **Transkription**: Audio wird automatisch mit Whisper lokal transkribiert
 4. **Anreicherung**: Optional wird der Text durch das LLM verbessert
 5. **Anzeige**: Beide Versionen (Original & KI) sind verfügbar
 
@@ -141,8 +138,19 @@ Aufnahmen werden im Ordner `recordings/` gespeichert:
 - **main.rs**: Haupteinstiegspunkt, Event-Loop, Tauri-Commands
 - **audio.rs**: Audio-Aufnahme und -Verarbeitung
 - **whisper.rs**: Whisper-Integration für Transkription
-- **llm.rs**: LLM-Integration (Ollama)
+- **llm.rs**: LLM-Integration (Ollama/Openrouter)
 - **config.rs**: Konfigurationsverwaltung
+- **logger.rs**: Logging-System mit Datei- und Konsolenausgabe
+
+### Tauri 2.0 Konfiguration (`src-tauri/`)
+
+- **Cargo.toml**: Rust-Dependencies und Build-Konfiguration
+- **tauri.conf.json**: Tauri-Anwendungskonfiguration
+- **build.rs**: Build-Skript für Tauri
+- **capabilities/default.json**: Capability-Definitionen für Tauri 2.0
+- **permissions/main.json**: Berechtigungen für Tauri-Commands
+- **gen/schemas/**: Generierte Tauri-Schemas
+- **icons/**: App-Icons für verschiedene Plattformen
 
 ### Frontend (`app/`)
 
@@ -152,72 +160,78 @@ Aufnahmen werden im Ordner `recordings/` gespeichert:
 
 ## Fehlerbehandlung
 
-Die App ist robust gegen häufige Fehler:
-
 - **LLM nicht erreichbar**: Speichert Original-Transkription statt zu crashen
-- **Mikrofon-Zugriff verweigert**: Zeigt hilfreiche Fehlermeldung
-- **Modell nicht gefunden**: Lädt Whisper-Modell automatisch herunter
+- **Mikrofon-Zugriff verweigert**: Zeigt eine Fehlermeldung
+- **Modell nicht gefunden**: Lädt Whisper-Modell beim Start automatisch nach
 
 ## Shortcuts
 
 - **Strg+Alt+Leertaste**: Aufnahme starten/stoppen (global)
 
-## Browser-Kompatibilität
-
-Die App funktioniert auch im Browser mit eingeschränkten Features:
-- Transkription via Xenova Transformers
-- Keine LLM-Anreicherung
-- Keine persistente Speicherung
-
-## Entwicklung
-
 ### Projekt-Struktur
 
 ```
 voice-intel-client/
-├── app/                   # Next.js Frontend
-├── src-tauri/             # Rust Backend
-│   ├── src/               # Rust Quellcode
-│   ├── icons/             # App-Icons
-│   └── Cargo.toml         # Rust Dependencies
-├── models/                # Whisper-Modelle
-├── recordings/            # Aufnahmen (wird erstellt)
-├── public/                # Statische Assets
-└── config.json            # App-Konfiguration
+├── app/                       # Next.js Frontend
+│   ├── layout.tsx            # App-Layout
+│   ├── page.tsx              # Haupt-UI-Komponente
+│   └── worker.ts             # Web Worker für Browser-Modus
+├── src-tauri/                # Rust Backend (Tauri 2.0)
+│   ├── src/                  # Rust Quellcode
+│   │   ├── audio.rs          # Audio-Aufnahme
+│   │   ├── config.rs         # Konfigurationsverwaltung
+│   │   ├── llm.rs            # LLM-Integration
+│   │   ├── logger.rs         # Logging-System
+│   │   ├── main.rs           # Haupteinstiegspunkt
+│   │   └── whisper.rs        # Whisper-Transkription
+│   ├── capabilities/
+│   │   └── default.json      # Tauri Capability-Definitionen
+│   ├── gen/
+│   │   └── schemas/          # Generierte Tauri-Schemas
+│   ├── icons/                # App-Icons (android/, ios/)
+│   ├── permissions/
+│   │   └── main.json         # Tauri-Berechtigungen
+│   ├── build.rs              # Build-Skript
+│   ├── Cargo.toml            # Rust Dependencies
+│   └── tauri.conf.json       # Tauri-Konfiguration
+├── public/                   # Statische Assets
+├── models/                   # Whisper-Modelle (wird erstellt)
+├── recordings/               # Aufnahmen (wird erstellt)
+├── config.json               # App-Konfiguration (wird erstellt)
+├── package.json              # Node.js Dependencies
+├── next.config.js            # Next.js Konfiguration
+└── tsconfig.json             # TypeScript Konfiguration
 ```
 
 ### Build-Skripte
+GitHub Actions: [Build Windows EXE](https://github.com/ailoadtech/voice-intel-client/blob/main/.github/workflows/build.yml)
 
-- `build.sh`: Linux/Mac Build-Skript
-- `src-tauri/build_windows.sh`: Windows Build-Skript
-- GitHub Actions: [Build Windows EXE](https://github.com/ailoadtech/voice-intel-client/blob/main/.github/workflows/build.yml)
-
-### Known Issues
-
-- Icon replacement for voice-intel-app.exe 
-- Many
+### Projektziel
+Voice Intelligence wurde als AI-native Desktop-Anwendung konzipiert.
+Ziele des Projekts:
+Lokale Sprachverarbeitung ohne Cloud-Abhängigkeit
+Kombination aus Rust-Performance und Web-Frontend
+Integration moderner LLM-Systeme in Desktop-Workflows
+Reproduzierbare Windows-Build-Pipeline
 
 ### About
-
 Ich habe eine Voice Recording Applikation für Windows gebaut.
 Es nimmt die Eingaben über das Mikrofon auf und erstellt mit Hilfe eines lokalen Whisper
-Modell eine Transkription. Weiterhin gibt es eine zweite Transkription die mit Hilfe eines
-LLM von meinem Olama Server angereichert wird. Man kann die Prompts konfigurieren 
-und in der Oberfläche auswählen.
+Modells eine Transkription. Weiterhin gibt es eine zweite Transkription,
+die mit Hilfe eines LLM von einem Olama Server angereichert wird. Alternativ kann Openrouter mit API Key benutzt werden.
+Man kann die Prompts konfigurieren und in der Oberfläche auswählen.
 
-Für die Architektur habe ich Qwen3-Max Thinking benutzt das auch den ersten Code erstellt hat.
-Dann viele Änderungen mit Hilfe von Antigravity durchgeführt und danach dann Kiro (Claude) für das Bugfixing benutzt.
-Leider ist das aber nicht so erfolgreich wie gedacht.
+Für die Architektur habe ich Qwen3-Max Thinking benutzt, das auch den ersten Code erstellt hat.
+Dann viele Änderungen mit Hilfe von Antigravity durchgeführt und danach mit Kiro.dev (Claude) für das Bugfixing benutzt.
+Das ist aber nicht so erfolgreich verlaufen wie gedacht.
 
-Die größten Probleme hat mir die Umgebung gemacht. Ich habe zuerst alles auf meiner AWS EC2
-mit einem Dockerfile aufgebaut, was nicht die richtige Entscheidung war.
-Dann habe ich alles auf meinem Windows neu aufgebaut, um zum Kompilieren.
-Aber auf Grund von verschiedenen Visual Studios und Code und Windows Dependencies hat das alles nicht funktioniert.
-Letzter Versuch war dann Github Action zu benutzen und nach einigen Iterationen macht es nun einen Build der 13 Minuten dauert.
-
-Die Aufgabe ist meine erste Application rein mit KI und ich habe dabei sehr viel gelernt.
+Die größten Probleme hat mir die Umgebung gemacht. Zuerst habe ich alles auf meiner AWS EC2 mit Docker aufgebaut,
+was nicht die richtige Entscheidung war. Dann alles nochmal auf meinem Windows, um das .exe zum compilieren.
+Aber auf Grund von verschiedenen Visual Studio und VS Code Versionen hat es mit den Windows Dependencies alles nicht funktioniert.
+Letzter Versuch war dann noch Github Actions zu benutzen und nach einigen Iterationen macht es auch einen Build nach 10 Minuten Laufzeit.
+Diese Aufgabe war eine meiner ersten Applikationen rein mit KI und ich habe sehr viel dazugelernt.
 
 ## Credits
 
-ailoadtech made this with joy and Qwen3-Max Thinking, Google Antigravity and Kiro, Verdent Minimax, Opus, Stepfun
-....-/. ...- . .-. .-.. .- ... -
+ailoadtech made this with joy and Qwen3-Max Thinking, Google Antigravity and Kiro, Verdent Minimax & Opus, and finally Stepfun via Openrouter
+....- / -..-. / . ...- . .-. .-.. .- ... -
