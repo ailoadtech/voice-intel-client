@@ -2,6 +2,7 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 // Global logging function that writes to window for debugging
 const debugLog = (message: string) => {
@@ -115,6 +116,9 @@ export default function HomePage() {
   } | null>(null);
   const [configLoading, setConfigLoading] = useState(false);
   const [configMessage, setConfigMessage] = useState<string | null>(null);
+
+  const expandedWindowSize = useRef<{ width: number; height: number } | null>(null);
+  const isWindowCollapsed = !isHistoryVisible && !isSettingsVisible;
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -432,6 +436,39 @@ export default function HomePage() {
       }, 50);
     }
   }, [isHistoryVisible, recordings.length]);
+
+  // Resize window when collapsed state changes
+  useEffect(() => {
+    const resizeWindow = async () => {
+      if (isTauriMode !== true) return;
+      
+      try {
+        const window = getCurrentWindow();
+        
+        if (isWindowCollapsed) {
+          // Save current expanded size before collapsing if not already saved
+          if (!expandedWindowSize.current) {
+            const currentSize = await window.size();
+            expandedWindowSize.current = { width: currentSize.width, height: currentSize.height };
+            console.log("Saved expanded window size:", expandedWindowSize.current);
+          }
+          // Collapse to minimal size to show only the 4 menu buttons
+          await window.setSize({ width: 300, height: 200 });
+          console.log("Window collapsed to 300x200");
+        } else {
+          // Expand to saved size or default
+          const targetSize = expandedWindowSize.current || { width: 800, height: 600 };
+          await window.setSize({ width: targetSize.width, height: targetSize.height });
+          console.log("Window expanded to", targetSize);
+          // Keep expandedWindowSize.current so we can collapse/expand consistently
+        }
+      } catch (err) {
+        console.error("Failed to resize window:", err);
+      }
+    };
+    
+    resizeWindow();
+  }, [isWindowCollapsed, isTauriMode]);
 
   const startRecording = useCallback(async () => {
     if (typeof window !== "undefined" && (window as any).TAURI) {
@@ -852,7 +889,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="app-container">
+      <div className={\`app-container\${isWindowCollapsed ? ' collapsed' : ''}\`}>
       {/* Draggable window region - top 20px */}
       <div className="window-drag-region"></div>
 
@@ -1286,6 +1323,10 @@ export default function HomePage() {
           border-radius: 12px;
           overflow: auto;
           position: relative;
+        }
+        .app-container.collapsed {
+          min-width: 300px !important;
+          min-height: 200px !important;
         }
         .window-drag-region {
           position: absolute;
