@@ -2,7 +2,7 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getCurrentWindow, PhysicalSize } from "@tauri-apps/api/window";
 
 // Global logging function that writes to window for debugging
 const debugLog = (message: string) => {
@@ -443,22 +443,22 @@ export default function HomePage() {
       if (isTauriMode !== true) return;
       
       try {
-        const window = getCurrentWindow();
+        const tauriWindow = getCurrentWindow();
         
         if (isWindowCollapsed) {
           // Save current expanded size before collapsing if not already saved
           if (!expandedWindowSize.current) {
-            const currentSize = await window.size();
+            const currentSize = await tauriWindow.innerSize();
             expandedWindowSize.current = { width: currentSize.width, height: currentSize.height };
             console.log("Saved expanded window size:", expandedWindowSize.current);
           }
           // Collapse to minimal size to show only the 4 menu buttons
-          await window.setSize({ width: 300, height: 200 });
+          await tauriWindow.setSize(new PhysicalSize(300, 200));
           console.log("Window collapsed to 300x200");
         } else {
           // Expand to saved size or default
           const targetSize = expandedWindowSize.current || { width: 800, height: 600 };
-          await window.setSize({ width: targetSize.width, height: targetSize.height });
+          await tauriWindow.setSize(new PhysicalSize(targetSize.width, targetSize.height));
           console.log("Window expanded to", targetSize);
           // Keep expandedWindowSize.current so we can collapse/expand consistently
         }
