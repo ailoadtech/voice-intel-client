@@ -889,7 +889,7 @@ export default function HomePage() {
   };
 
   return (
-      <div className={\`app-container\${isWindowCollapsed ? ' collapsed' : ''}\`}>
+      <div className={`app-container${isWindowCollapsed ? ' collapsed' : ''}`}>
       {/* Draggable window region - top 20px */}
       <div className="window-drag-region"></div>
 
